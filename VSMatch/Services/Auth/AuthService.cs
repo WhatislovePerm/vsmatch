@@ -48,14 +48,14 @@ public class AuthService : IAuthService
                $"&code_challenge_method=S256";
     }
 
-    public async Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, CancellationToken ct)
+    public async Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct)
     {
         if (!_stateStore.TryGet(state, out var verifier))
             throw new InvalidOperationException("Invalid or expired state.");
 
         _stateStore.Remove(state);
 
-        var token = await _vk.ExchangeCodeAsync(code, verifier, ct);
+        var token = await _vk.ExchangeCodeAsync(code, verifier, deviceId, ct);
 
         // user_id приходит уже в ответе от token exchange.
         // user_info опционален — если VK его не отдаст, логин всё равно пройдёт.

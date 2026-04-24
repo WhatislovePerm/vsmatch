@@ -20,9 +20,9 @@ public class VkIdClient : IVkIdClient
         _log = log;
     }
 
-    public async Task<VkIdTokenResult> ExchangeCodeAsync(string code, string codeVerifier, CancellationToken ct)
+    public async Task<VkIdTokenResult> ExchangeCodeAsync(string code, string codeVerifier, string? deviceId, CancellationToken ct)
     {
-        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        var fields = new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["client_id"] = _opt.ClientId,
@@ -30,7 +30,9 @@ public class VkIdClient : IVkIdClient
             ["redirect_uri"] = _opt.RedirectUri,
             ["code"] = code,
             ["code_verifier"] = codeVerifier,
-        });
+        };
+        if (!string.IsNullOrEmpty(deviceId)) fields["device_id"] = deviceId;
+        var form = new FormUrlEncodedContent(fields);
 
         using var resp = await _http.PostAsync(TokenEndpoint, form, ct);
         var raw = await resp.Content.ReadAsStringAsync(ct);

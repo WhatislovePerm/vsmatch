@@ -32,12 +32,13 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> VkIdCallback(
         [FromQuery] string code,
         [FromQuery] string state,
+        [FromQuery(Name = "device_id")] string? deviceId,
         CancellationToken ct)
     {
         var frontend = _vkOpt.FrontendRedirectUrl;
         try
         {
-            var res = await _auth.HandleVkIdCallbackAsync(code, state, ct);
+            var res = await _auth.HandleVkIdCallbackAsync(code, state, deviceId, ct);
             if (!string.IsNullOrEmpty(frontend))
             {
                 var url = $"{frontend}#token={Uri.EscapeDataString(res.AccessToken)}" +

@@ -6,6 +6,6 @@ public record VkIdUserInfo(string UserId, string? Email, string? FirstName, stri
 
 public interface IVkIdClient
 {
-    Task<VkIdTokenResult> ExchangeCodeAsync(string code, string codeVerifier, CancellationToken ct);
+    Task<VkIdTokenResult> ExchangeCodeAsync(string code, string codeVerifier, string? deviceId, CancellationToken ct);
     Task<VkIdUserInfo?> TryGetUserInfoAsync(string accessToken, CancellationToken ct);
 }
