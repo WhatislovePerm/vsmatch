@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: vsmatch-postgres
+    environment:
+      POSTGRES_DB: vsmatch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - vsmatch_pgdata:/var/lib/postgresql/data
+
+volumes:
+  vsmatch_pgdata:

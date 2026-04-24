@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /tmp/vsmatch_backup)",
+      "Bash(cp vsmatch.Api/appsettings.json /tmp/vsmatch_backup/)",
+      "Bash(cp vsmatch.Api/appsettings.Development.json /tmp/vsmatch_backup/)",
+      "Bash(cp docker-compose.yml /tmp/vsmatch_backup/)",
+      "Bash(rm -rf vsmatch.Api vsmatch.Application vsmatch.Domain vsmatch.Infrastructure vsmatch.sln caddyfile)"
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: vsmatch-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./VSMatch
+    container_name: vsmatch-api
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__AccessTokenMinutes: "60"
+      VkId__ClientId: ${VKID_CLIENT_ID}
+      VkId__ClientSecret: ${VKID_CLIENT_SECRET}
+      VkId__RedirectUri: ${VKID_REDIRECT_URI}
+      VkId__Scope: "vkid.personal_info email"
+      VkId__FrontendRedirectUrl: ${VKID_FRONTEND_REDIRECT_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: vsmatch-frontend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    container_name: vsmatch-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

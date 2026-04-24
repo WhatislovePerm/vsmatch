@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# .NET
+bin/
+obj/
+*.user
+appsettings.Development.json
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
