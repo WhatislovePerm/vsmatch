@@ -56,17 +56,23 @@ public class AuthService : IAuthService
         _stateStore.Remove(state);
 
         var token = await _vk.ExchangeCodeAsync(code, verifier, ct);
-        var info = await _vk.GetUserInfoAsync(token.AccessToken, ct);
 
-        var user = await _users.GetByVkUserIdAsync(info.UserId, ct);
+        // user_id приходит уже в ответе от token exchange.
+        // user_info опционален — если VK его не отдаст, логин всё равно пройдёт.
+        var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
+
+        var vkUserId = info?.UserId ?? token.UserId
+            ?? throw new InvalidOperationException("VK ID did not return user_id.");
+
+        var user = await _users.GetByVkUserIdAsync(vkUserId, ct);
         if (user is null)
         {
             user = new User
             {
                 Id = Guid.NewGuid(),
-                VkUserId = info.UserId,
-                DisplayName = BuildDisplayName(info),
-                Email = info.Email,
+                VkUserId = vkUserId,
+                DisplayName = BuildDisplayName(info, vkUserId),
+                Email = info?.Email,
                 CreatedAt = DateTime.UtcNow,
             };
             await _users.AddAsync(user, ct);
@@ -76,11 +82,11 @@ public class AuthService : IAuthService
         return _tokens.CreateToken(user);
     }
 
-    private static string BuildDisplayName(VkIdUserInfo info)
+    private static string BuildDisplayName(VkIdUserInfo? info, string vkUserId)
     {
-        var parts = new[] { info.FirstName, info.LastName }
+        var parts = new[] { info?.FirstName, info?.LastName }
             .Where(s => !string.IsNullOrWhiteSpace(s));
         var name = string.Join(' ', parts).Trim();
-        return string.IsNullOrEmpty(name) ? $"vk_{info.UserId}" : name;
+        return string.IsNullOrEmpty(name) ? $"vk_{vkUserId}" : name;
     }
 }
