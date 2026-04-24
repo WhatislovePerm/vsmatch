@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -47,21 +46,23 @@ public class VkIdClient : IVkIdClient
 
     public async Task<VkIdUserInfo> GetUserInfoAsync(string accessToken, CancellationToken ct)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Get, UserInfoEndpoint);
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-        using var resp = await _http.SendAsync(req, ct);
-        if (!resp.IsSuccessStatusCode)
+        // VK ID /oauth2/user_info: POST form-urlencoded с client_id + access_token в теле
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            var body = await resp.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"VK ID user_info failed: {(int)resp.StatusCode} {body}");
-        }
-        Console.WriteLine("VK ID user_info response: " + await resp.Content.ReadAsStringAsync(ct));
-        var info = await resp.Content.ReadFromJsonAsync<UserInfoBody>(cancellationToken: ct)
+            ["client_id"] = _opt.ClientId,
+            ["access_token"] = accessToken,
+        });
+
+        using var resp = await _http.PostAsync(UserInfoEndpoint, form, ct);
+        var raw = await resp.Content.ReadAsStringAsync(ct);
+        if (!resp.IsSuccessStatusCode)
+            throw new InvalidOperationException($"VK ID user_info failed: {(int)resp.StatusCode} {raw}");
+
+        var info = System.Text.Json.JsonSerializer.Deserialize<UserInfoBody>(raw)
                    ?? throw new InvalidOperationException("Empty VK ID user_info response.");
 
         var userId = info.user?.user_id ?? info.user_id
-                     ?? throw new InvalidOperationException("VK ID did not return user_id.");
+                     ?? throw new InvalidOperationException($"VK ID did not return user_id. Raw: {raw}");
 
         return new VkIdUserInfo(
             userId,
