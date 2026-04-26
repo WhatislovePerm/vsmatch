@@ -6,6 +6,11 @@ vsmatch.ru, www.vsmatch.ru {
         reverse_proxy api:8080
     }
 
+    # Swagger UI и OpenAPI JSON
+    handle /swagger* {
+        reverse_proxy api:8080
+    }
+
     # Всё остальное → фронтенд (nginx со статикой)
     handle {
         reverse_proxy frontend:80
