@@ -20,14 +20,19 @@ public class VkIdClient : IVkIdClient
         _log = log;
     }
 
-    public async Task<VkIdTokenResult> ExchangeCodeAsync(string code, string codeVerifier, string? deviceId, CancellationToken ct)
+    public async Task<VkIdTokenResult> ExchangeCodeAsync(
+        string code,
+        string codeVerifier,
+        string? deviceId,
+        string? redirectUriOverride,
+        CancellationToken ct)
     {
         var fields = new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["client_id"] = _opt.ClientId,
             ["client_secret"] = _opt.ClientSecret,
-            ["redirect_uri"] = _opt.RedirectUri,
+            ["redirect_uri"] = string.IsNullOrEmpty(redirectUriOverride) ? _opt.RedirectUri : redirectUriOverride,
             ["code"] = code,
             ["code_verifier"] = codeVerifier,
         };

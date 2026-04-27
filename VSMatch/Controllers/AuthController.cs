@@ -28,6 +28,23 @@ public class AuthController : ControllerBase
     [HttpGet("vkid/url")]
     public ActionResult<VkIdAuthorizeUrlDto> VkIdUrl() => Ok(new VkIdAuthorizeUrlDto(_auth.BuildVkIdAuthorizeUrl()));
 
+    // Для мобильных SDK с Confidential Flow:
+    // приложение само генерит PKCE и присылает все 5 полей в теле POST.
+    [HttpPost("vkid/exchange")]
+    public async Task<ActionResult<AuthResponse>> VkIdExchange(
+        [FromBody] VkIdExchangeRequest req,
+        CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await _auth.ExchangeVkIdCodeAsync(req, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("vkid/callback")]
     public async Task<IActionResult> VkIdCallback(
         [FromQuery] string code,

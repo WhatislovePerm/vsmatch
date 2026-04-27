@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VSMatch.Dtos.Courts;
 using VSMatch.Services.Courts;
@@ -5,6 +6,7 @@ using VSMatch.Services.Courts;
 namespace VSMatch.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/courts")]
 public class CourtsController : ControllerBase
 {

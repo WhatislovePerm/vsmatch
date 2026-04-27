@@ -55,10 +55,43 @@ public class AuthService : IAuthService
 
         _stateStore.Remove(state);
 
-        var token = await _vk.ExchangeCodeAsync(code, verifier, deviceId, ct);
+        var token = await _vk.ExchangeCodeAsync(code, verifier, deviceId, redirectUriOverride: null, ct);
 
         // user_id приходит уже в ответе от token exchange.
         // user_info опционален — если VK его не отдаст, логин всё равно пройдёт.
+        var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
+
+        var vkUserId = info?.UserId ?? token.UserId
+            ?? throw new InvalidOperationException("VK ID did not return user_id.");
+
+        var user = await _users.GetByVkUserIdAsync(vkUserId, ct);
+        if (user is null)
+        {
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                VkUserId = vkUserId,
+                DisplayName = BuildDisplayName(info, vkUserId),
+                Email = info?.Email,
+                CreatedAt = DateTime.UtcNow,
+            };
+            await _users.AddAsync(user, ct);
+            await _users.SaveChangesAsync(ct);
+        }
+
+        return _tokens.CreateToken(user);
+    }
+
+    public async Task<AuthResponse> ExchangeVkIdCodeAsync(VkIdExchangeRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.Code))
+            throw new InvalidOperationException("code is required.");
+        if (string.IsNullOrWhiteSpace(req.CodeVerifier))
+            throw new InvalidOperationException("codeVerifier is required.");
+        if (string.IsNullOrWhiteSpace(req.DeviceId))
+            throw new InvalidOperationException("deviceId is required.");
+
+        var token = await _vk.ExchangeCodeAsync(req.Code, req.CodeVerifier, req.DeviceId, req.RedirectUri, ct);
         var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
 
         var vkUserId = info?.UserId ?? token.UserId
