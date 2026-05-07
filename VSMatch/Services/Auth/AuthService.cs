@@ -115,6 +115,24 @@ public class AuthService : IAuthService
         return _tokens.CreateToken(user);
     }
 
+    public async Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest req, CancellationToken ct)
+    {
+        var name = req.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Display name is required.");
+        if (name.Length > 64)
+            throw new InvalidOperationException("Display name must be 64 characters or less.");
+
+        var user = await _users.GetByIdAsync(userId, ct)
+            ?? throw new InvalidOperationException("User not found.");
+
+        user.DisplayName = name;
+        _users.Update(user);
+        await _users.SaveChangesAsync(ct);
+
+        return _tokens.CreateToken(user);
+    }
+
     private static string BuildDisplayName(VkIdUserInfo? info, string vkUserId)
     {
         var parts = new[] { info?.FirstName, info?.LastName }

@@ -15,6 +15,7 @@ import { Badge, Button, IconButton, Input } from './ui';
 interface Props {
   court: Court;
   matches: Match[];
+  currentUserId: string | null;
   onClose: () => void;
   onCreateMatch: (input: {
     title: string;
@@ -25,15 +26,18 @@ interface Props {
   }) => Promise<void>;
   onCancelMatch: (match: Match) => Promise<void>;
   onStartMatch: (match: Match) => Promise<void>;
+  onCompleteMatch: (match: Match) => Promise<void>;
 }
 
 export function CourtCard({
   court,
   matches,
+  currentUserId,
   onClose,
   onCreateMatch,
   onCancelMatch,
   onStartMatch,
+  onCompleteMatch,
 }: Props) {
   const [title, setTitle] = useState('Матч');
   const [maxPlayers, setMaxPlayers] = useState(10);
@@ -150,6 +154,8 @@ export function CourtCard({
                   }}
                   onCancel={() => onCancelMatch(match)}
                   onStart={() => onStartMatch(match)}
+                  onComplete={() => onCompleteMatch(match)}
+                  canManage={match.createdByUserId === currentUserId}
                 />
               ))}
               <p className="text-[12px] text-muted mt-1">
@@ -200,12 +206,16 @@ function MatchRow({
   onCopy,
   onCancel,
   onStart,
+  onComplete,
+  canManage,
 }: {
   match: Match;
   copied: boolean;
   onCopy: () => void;
   onCancel: () => void;
   onStart: () => void;
+  onComplete: () => void;
+  canManage: boolean;
 }) {
   return (
     <article className="bg-subtle border border-line rounded-[20px] p-4 flex flex-col gap-3">
@@ -253,7 +263,7 @@ function MatchRow({
         >
           {copied ? 'Скопировано' : 'Копировать ссылку'}
         </Button>
-        {match.currentPlayers < 2 ? (
+        {canManage && match.currentPlayers < 2 ? (
           <Button
             variant="danger"
             size="sm"
@@ -262,7 +272,7 @@ function MatchRow({
           >
             Отменить
           </Button>
-        ) : match.status !== 'InProgress' ? (
+        ) : canManage && match.status !== 'InProgress' ? (
           <Button
             variant="primary"
             size="sm"
@@ -270,6 +280,15 @@ function MatchRow({
             onClick={onStart}
           >
             Начать
+          </Button>
+        ) : canManage ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={<Check size={14} />}
+            onClick={onComplete}
+          >
+            Завершить
           </Button>
         ) : null}
       </div>

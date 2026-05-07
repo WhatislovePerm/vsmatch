@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { fetchCourts } from './api/courts';
 import { createMatch, fetchMatches, joinMatchByInvite, updateMatch } from './api/matches';
-import { getMe, type Me } from './api/auth';
+import { getMe, updateProfile, type Me } from './api/auth';
 import { clearToken, loadToken } from './auth/storage';
 import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
 import { Badge, IconButton } from './components/ui';
+import { ProfilePanel } from './components/ProfilePanel';
 import type { Court, Match } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
@@ -33,6 +34,7 @@ export default function App() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selected, setSelected] = useState<Court | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const reloadCourtsAndMatches = useCallback(async () => {
     const [courtsRes, matchesRes] = await Promise.all([fetchCourts(), fetchMatches()]);
@@ -131,14 +133,18 @@ export default function App() {
             {freeCount} свободно
           </Badge>
           {me && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line">
+            <button
+              type="button"
+              onClick={() => setProfileOpen(true)}
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors"
+            >
               <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold">
                 {(me.name?.[0] ?? '?').toUpperCase()}
               </div>
               <span className="text-[13px] font-medium text-ink-2 max-w-[140px] truncate">
                 {me.name}
               </span>
-            </div>
+            </button>
           )}
           <IconButton onClick={handleLogout} aria-label="Выйти" variant="subtle">
             <LogOut size={16} />
@@ -156,6 +162,7 @@ export default function App() {
           <CourtCard
             court={selected}
             matches={matches.filter((m) => m.courtId === selected.id)}
+            currentUserId={me?.userId ?? null}
             onClose={() => setSelected(null)}
             onCreateMatch={async (input) => {
               await createMatch({ courtId: selected.id, ...input });
@@ -183,6 +190,30 @@ export default function App() {
                 maxPlayers: match.maxPlayers,
                 status: 'InProgress',
               });
+              await reloadCourtsAndMatches();
+            }}
+            onCompleteMatch={async (match) => {
+              await updateMatch(match.id, {
+                courtId: match.courtId,
+                title: match.title,
+                description: match.description,
+                startsAtUtc: match.startsAtUtc,
+                durationMinutes: match.durationMinutes,
+                maxPlayers: match.maxPlayers,
+                status: 'Completed',
+              });
+              await reloadCourtsAndMatches();
+            }}
+          />
+        )}
+        {profileOpen && me && (
+          <ProfilePanel
+            me={me}
+            onClose={() => setProfileOpen(false)}
+            onSave={async (displayName) => {
+              await updateProfile(displayName);
+              const freshMe = await getMe();
+              setMe(freshMe);
               await reloadCourtsAndMatches();
             }}
           />

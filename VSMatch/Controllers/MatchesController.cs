@@ -59,7 +59,7 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var updated = await _matches.UpdateAsync(id, req, ct);
+            var updated = await _matches.UpdateAsync(id, req, GetUserId(), ct);
             return updated is null ? NotFound() : Ok(updated);
         }
         catch (InvalidOperationException ex)

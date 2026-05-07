@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using VSMatch.Dtos.Auth;
 using VSMatch.Options;
 using VSMatch.Services.Auth;
@@ -81,4 +82,27 @@ public class AuthController : ControllerBase
         vkUserId = User.FindFirst("vk_user_id")?.Value,
         email = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Email)?.Value,
     });
+
+    [Authorize]
+    [HttpPut("me")]
+    public async Task<ActionResult<AuthResponse>> UpdateMe(UpdateProfileRequest req, CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await _auth.UpdateProfileAsync(GetUserId(), req, ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private Guid GetUserId()
+    {
+        var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(value, out var userId))
+            throw new InvalidOperationException("Invalid user id in token.");
+
+        return userId;
+    }
 }

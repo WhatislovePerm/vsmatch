@@ -79,12 +79,14 @@ public class MatchService : IMatchService
         return ToDto(match);
     }
 
-    public async Task<MatchDto?> UpdateAsync(Guid id, UpdateMatchRequest req, CancellationToken ct = default)
+    public async Task<MatchDto?> UpdateAsync(Guid id, UpdateMatchRequest req, Guid userId, CancellationToken ct = default)
     {
         Validate(req.Title, req.DurationMinutes, req.MaxPlayers);
 
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
+        if (match.CreatedByUserId != userId && req.Status != match.Status)
+            throw new InvalidOperationException("Only match creator can change match status.");
         if (req.MaxPlayers < match.Players.Count)
             throw new InvalidOperationException("Max players cannot be less than current players count.");
 
