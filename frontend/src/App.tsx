@@ -111,15 +111,15 @@ export default function App() {
   const freeCount = courts.filter((c) => c.isFree).length;
 
   return (
-    <div className="h-screen flex flex-col bg-[--color-page]">
-      <header className="flex items-center justify-between px-5 sm:px-7 py-3.5 bg-[--color-card]/90 backdrop-blur-md border-b border-[--color-line] z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
+    <div className="h-screen flex flex-col bg-page">
+      <header className="flex items-center justify-between px-5 sm:px-7 py-3.5 bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-[14px] bg-[--color-ink-3] text-white flex items-center justify-center text-[18px]">
+          <div className="w-9 h-9 rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[18px]">
             ⚽
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-bold text-[15px] tracking-tight text-[--color-ink]">VSMatch</span>
-            <span className="text-[11px] text-[--color-muted] hidden sm:block">Москва · САО</span>
+            <span className="font-bold text-[15px] tracking-tight text-ink">VSMatch</span>
+            <span className="text-[11px] text-muted hidden sm:block">Москва · САО</span>
           </div>
         </div>
 
@@ -131,11 +131,11 @@ export default function App() {
             {freeCount} свободно
           </Badge>
           {me && (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[--color-subtle] border border-[--color-line]">
-              <div className="w-6 h-6 rounded-full bg-[--color-ink-3] text-white flex items-center justify-center text-[11px] font-semibold">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line">
+              <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold">
                 {(me.name?.[0] ?? '?').toUpperCase()}
               </div>
-              <span className="text-[13px] font-medium text-[--color-ink-2] max-w-[140px] truncate">
+              <span className="text-[13px] font-medium text-ink-2 max-w-[140px] truncate">
                 {me.name}
               </span>
             </div>

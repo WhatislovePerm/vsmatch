@@ -126,19 +126,25 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
           continue;
         }
 
-        const el = document.createElement('div');
-        el.className = markerClass(c, c.id === selectedId);
-        el.textContent = '⚽';
-        el.addEventListener('click', (e) => {
+        // Outer обёртка — MapLibre её использует для позиционирования (transform).
+        // Inner div — визуальный пин с нашим hover/scale без конфликта.
+        const wrapper = document.createElement('div');
+        wrapper.className = 'court-marker-wrapper';
+        const visual = document.createElement('div');
+        visual.className = markerClass(c, c.id === selectedId);
+        visual.textContent = '⚽';
+        wrapper.appendChild(visual);
+
+        wrapper.addEventListener('click', (e) => {
           e.stopPropagation();
           onSelectRef.current(c);
         });
 
-        const marker = new maplibregl.Marker({ element: el })
+        const marker = new maplibregl.Marker({ element: wrapper })
           .setLngLat([c.lon, c.lat])
           .addTo(map);
 
-        existing.set(c.id, { marker, el });
+        existing.set(c.id, { marker, el: visual });
       }
     };
 

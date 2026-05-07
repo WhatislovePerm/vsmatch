@@ -61,7 +61,13 @@ button {
   font-family: inherit;
 }
 
-/* ───────────── Кастомные маркеры Yandex Maps ───────────── */
+/* ───────────── Кастомные маркеры (MapLibre) ─────────────
+   Wrapper: позицией владеет MapLibre, мы НЕ ставим transform на него.
+   Visual:  все эффекты hover/scale здесь, чтобы не ломать позицию при зуме. */
+.court-marker-wrapper {
+  cursor: pointer;
+}
+
 .court-marker {
   width: 32px;
   height: 32px;
@@ -73,23 +79,21 @@ button {
   box-shadow: 0 4px 12px rgba(31, 44, 65, 0.3);
   color: white;
   font-size: 14px;
-  cursor: pointer;
-  transition: transform 0.15s ease;
   user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .court-marker--free { background: #1f7a3a; }
 .court-marker--busy { background: #b91c1c; }
 
-.court-marker:hover {
-  transform: scale(1.1);
+.court-marker-wrapper:hover .court-marker {
+  transform: scale(1.12);
 }
 
 .court-marker--active {
   width: 42px;
   height: 42px;
   font-size: 18px;
-  z-index: 1000;
 }
 
 .court-marker--free.court-marker--active {
