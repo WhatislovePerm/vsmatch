@@ -77,21 +77,25 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
     });
 
     map.on('load', () => {
-      // Лог чтобы видеть что карта точно дошла до load
-      console.log('[Map] loaded');
+      const c = container.getBoundingClientRect();
+      console.log('[Map] loaded; container=', c.width, 'x', c.height);
       map.resize();
     });
 
     mapRef.current = map;
 
-    // Авто-resize при изменении размеров контейнера (фикс "0×0 при первом монтаже")
+    // Несколько триггеров resize: ResizeObserver + window.resize + таймеры
     const resizeObserver = new ResizeObserver(() => map.resize());
     resizeObserver.observe(container);
-    // На всякий случай — после следующего тика
-    const t = setTimeout(() => map.resize(), 100);
+    window.addEventListener('resize', () => map.resize());
+
+    const timers = [50, 200, 500, 1000].map((ms) =>
+      setTimeout(() => map.resize(), ms),
+    );
 
     return () => {
-      clearTimeout(t);
+      timers.forEach(clearTimeout);
+      window.removeEventListener('resize', () => map.resize());
       resizeObserver.disconnect();
       markersRef.current.clear();
       map.remove();
@@ -143,15 +147,19 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
   }, [courts, selectedId]);
 
   return (
-    <div className="absolute inset-0">
-      <div ref={containerRef} className="absolute inset-0" />
+    <>
+      <div
+        ref={containerRef}
+        className="absolute inset-0"
+        style={{ width: '100%', height: '100%' }}
+      />
       {mapError && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] max-w-md px-4 py-3 rounded-[14px] bg-danger-bg border border-danger-line text-danger text-[12.5px] shadow-md">
           <div className="font-bold mb-1">Ошибка карты</div>
           <div className="break-words">{mapError}</div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
