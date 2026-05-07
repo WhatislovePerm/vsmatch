@@ -8,5 +8,6 @@ public record CourtDto(
     double Lon,
     string? Sport,
     string? Surface,
-    double? Rating
+    double? Rating,
+    bool IsFree
 );

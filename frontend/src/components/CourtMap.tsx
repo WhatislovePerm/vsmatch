@@ -26,7 +26,7 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
             pathOptions={{
               color: active ? '#fff' : '#22c55e',
               weight: active ? 3 : 1,
-              fillColor: active ? '#16a34a' : '#22c55e',
+              fillColor: active ? '#16a34a' : c.isFree ? '#22c55e' : '#ef4444',
               fillOpacity: 0.9,
             }}
             eventHandlers={{ click: () => onSelect(c) }}

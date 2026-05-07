@@ -23,5 +23,5 @@ public class CourtService : ICourtService
     }
 
     private static CourtDto ToDto(Court c) =>
-        new(c.Id, c.Name, c.Description, c.Lat, c.Lon, c.Sport, c.Surface, c.Rating);
+        new(c.Id, c.Name, c.Description, c.Lat, c.Lon, c.Sport, c.Surface, c.Rating, c.IsFree);
 }

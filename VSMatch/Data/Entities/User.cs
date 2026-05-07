@@ -7,4 +7,6 @@ public class User
     public string DisplayName { get; set; } = string.Empty;
     public string? Email { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
 }

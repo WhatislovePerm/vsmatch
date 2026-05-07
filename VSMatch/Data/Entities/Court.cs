@@ -11,5 +11,8 @@ public class Court
     public string? Sport { get; set; }
     public string? Surface { get; set; }
     public double? Rating { get; set; }
+    public bool IsFree { get; set; } = true;
     public DateTime CreatedAt { get; set; }
+
+    public ICollection<Match> Matches { get; set; } = new List<Match>();
 }

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -7,6 +8,7 @@ using VSMatch.Data.Repositories;
 using VSMatch.Options;
 using VSMatch.Services.Auth;
 using VSMatch.Services.Courts;
+using VSMatch.Services.Matches;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,9 +26,12 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 // Repositories
 builder.Services.AddScoped<ICourtRepository, CourtRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 
 // Services
 builder.Services.AddScoped<ICourtService, CourtService>();
+builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddSingleton<IVkIdStateStore, InMemoryVkIdStateStore>();
@@ -57,7 +62,8 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

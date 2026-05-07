@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VSMatch.Data;
@@ -11,9 +12,11 @@ using VSMatch.Data;
 namespace VSMatch.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260507184550_AddMatchesAndCourtAvailability")]
+    partial class AddMatchesAndCourtAvailability
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -88,17 +91,15 @@ namespace VSMatch.Data.Migrations
                     b.Property<Guid>("CreatedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("CurrentPlayers")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
 
                     b.Property<int>("DurationMinutes")
                         .HasColumnType("integer");
-
-                    b.Property<string>("InviteCode")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
 
                     b.Property<int>("MaxPlayers")
                         .HasColumnType("integer");
@@ -125,28 +126,7 @@ namespace VSMatch.Data.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.HasIndex("InviteCode")
-                        .IsUnique();
-
                     b.ToTable("Matches");
-                });
-
-            modelBuilder.Entity("VSMatch.Data.Entities.MatchPlayer", b =>
-                {
-                    b.Property<Guid>("MatchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("MatchId", "UserId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("MatchPlayers");
                 });
 
             modelBuilder.Entity("VSMatch.Data.Entities.User", b =>
@@ -199,38 +179,9 @@ namespace VSMatch.Data.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
-            modelBuilder.Entity("VSMatch.Data.Entities.MatchPlayer", b =>
-                {
-                    b.HasOne("VSMatch.Data.Entities.Match", "Match")
-                        .WithMany("Players")
-                        .HasForeignKey("MatchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VSMatch.Data.Entities.User", "User")
-                        .WithMany("MatchPlayers")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Match");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("VSMatch.Data.Entities.Court", b =>
                 {
                     b.Navigation("Matches");
-                });
-
-            modelBuilder.Entity("VSMatch.Data.Entities.Match", b =>
-                {
-                    b.Navigation("Players");
-                });
-
-            modelBuilder.Entity("VSMatch.Data.Entities.User", b =>
-                {
-                    b.Navigation("MatchPlayers");
                 });
 #pragma warning restore 612, 618
         }
