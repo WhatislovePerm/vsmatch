@@ -2,40 +2,40 @@
 
 /* ───────────── Theme tokens (light, iOS-style, из SVG-референса) ───────────── */
 @theme {
-  /* Брендовые шрифты */
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", Roboto, sans-serif;
 
   /* Поверхности */
-  --color-page: #f0f3f8;
+  --color-page: #e7ebf2;          /* фон страницы — заметно темнее белого */
+  --color-page-2: #dde2eb;        /* для градиентного фона */
   --color-card: #ffffff;
-  --color-subtle: #fafafa;
-  --color-accent-bg: #f9f9f9;
+  --color-subtle: #f3f5f9;
+  --color-subtle-2: #eaedf3;
 
   /* Текст */
   --color-ink: #111111;
   --color-ink-2: #1f2c41;
   --color-ink-3: #1a1a2e;
-  --color-muted: #8e8e93;
-  --color-muted-2: #b1b5bd;
-  --color-muted-3: #c7c7cc;
+  --color-muted: #6b7280;
+  --color-muted-2: #9aa3af;
 
   /* Линии */
-  --color-line: #e5e5ea;
-  --color-line-strong: #dee0e3;
+  --color-line: #dde2eb;
+  --color-line-strong: #cbd1dc;
 
   /* Аксенты */
-  --color-danger: #e41414;
   --color-success: #1f7a3a;
-  --color-warn: #b58a00;
-
-  /* Радиусы — из SVG: rx=20 / 44 / 48 / 70 */
-  --radius-pill: 999px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --radius-2xl: 44px;
-  --radius-3xl: 56px;
+  --color-success-bg: #e8f6ec;
+  --color-success-line: #cfeed9;
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fdecec;
+  --color-danger-line: #f8c9c9;
+  --color-warn: #9a6b00;
+  --color-warn-bg: #fcf3da;
+  --color-warn-line: #f1dca0;
+  --color-info: #1f2c41;
+  --color-info-bg: #e8edf6;
+  --color-info-line: #cfd6e6;
 }
 
 /* ───────────── Глобальный сброс / база ───────────── */
@@ -50,7 +50,6 @@ html, body, #root {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "ss01", "cv11";
 }
 
 body {
@@ -62,72 +61,43 @@ button {
   font-family: inherit;
 }
 
-/* ───────────── Leaflet — тонкая адаптация под светлую тему ───────────── */
-.leaflet-container {
-  background: #eef1f6;
-  font-family: var(--font-sans);
-}
-
-.leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.85) !important;
-  color: var(--color-muted) !important;
-  font-size: 10px !important;
-  padding: 2px 6px !important;
-  border-radius: 8px !important;
-  margin: 8px !important;
-}
-
-.leaflet-control-attribution a { color: var(--color-ink-2) !important; }
-
-.leaflet-control-zoom {
-  border: none !important;
-  border-radius: 14px !important;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(31, 44, 65, 0.08), 0 0 0 1px var(--color-line) !important;
-}
-
-.leaflet-control-zoom a {
-  background: white !important;
-  color: var(--color-ink-2) !important;
-  border-bottom: 1px solid var(--color-line) !important;
-}
-
-.leaflet-control-zoom a:hover { background: var(--color-subtle) !important; }
-.leaflet-control-zoom a:last-child { border-bottom: none !important; }
-
-/* ───────────── Кастомные маркеры (через divIcon) ───────────── */
+/* ───────────── Кастомные маркеры Yandex Maps ───────────── */
 .court-marker {
-  background: transparent;
-  border: none;
-}
-
-.court-marker__pin {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid white;
-  box-shadow: 0 4px 12px rgba(31, 44, 65, 0.25);
+  border: 2.5px solid white;
+  box-shadow: 0 4px 12px rgba(31, 44, 65, 0.3);
   color: white;
-  font-size: 13px;
+  font-size: 14px;
+  cursor: pointer;
   transition: transform 0.15s ease;
+  user-select: none;
 }
 
-.court-marker__pin--free { background: #1f7a3a; }
-.court-marker__pin--busy { background: #b91c1c; }
+.court-marker--free { background: #1f7a3a; }
+.court-marker--busy { background: #b91c1c; }
 
-.court-marker__pin--active {
-  width: 36px;
-  height: 36px;
-  font-size: 16px;
-  box-shadow: 0 0 0 4px rgba(31, 122, 58, 0.18), 0 6px 16px rgba(31, 44, 65, 0.3);
+.court-marker:hover {
+  transform: scale(1.1);
+}
+
+.court-marker--active {
+  width: 42px;
+  height: 42px;
+  font-size: 18px;
   z-index: 1000;
 }
 
-.court-marker__pin--active.court-marker__pin--busy {
-  box-shadow: 0 0 0 4px rgba(228, 20, 20, 0.16), 0 6px 16px rgba(31, 44, 65, 0.3);
+.court-marker--free.court-marker--active {
+  box-shadow: 0 0 0 5px rgba(31, 122, 58, 0.22), 0 6px 16px rgba(31, 44, 65, 0.35);
+}
+
+.court-marker--busy.court-marker--active {
+  box-shadow: 0 0 0 5px rgba(185, 28, 28, 0.22), 0 6px 16px rgba(31, 44, 65, 0.35);
 }
 
 /* ───────────── Анимации ───────────── */
@@ -144,7 +114,6 @@ button {
 .anim-panel { animation: panel-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .anim-sheet { animation: sheet-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
-/* Тонкий скроллбар внутри карточки */
 .thin-scroll::-webkit-scrollbar { width: 6px; }
-.thin-scroll::-webkit-scrollbar-thumb { background: var(--color-muted-3); border-radius: 999px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: var(--color-muted-2); border-radius: 999px; }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; }
