@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchCourts } from './api/courts';
-import { createMatch, deleteMatch, fetchMatches, joinMatch, joinMatchByInvite, leaveMatch, updateMatch } from './api/matches';
+import { createMatch, fetchMatches, joinMatchByInvite, updateMatch } from './api/matches';
 import { getMe, type Me } from './api/auth';
 import { clearToken, loadToken } from './auth/storage';
 import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
 import { AuthCallback } from './components/AuthCallback';
-import type { Court, Match, MatchStatus } from './types';
+import type { Court, Match } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
 const PENDING_INVITE_KEY = 'vsmatch.pendingInvite';
@@ -164,7 +164,7 @@ export default function App() {
               await createMatch({ courtId: selected.id, ...input });
               await reloadCourtsAndMatches();
             }}
-            onChangeMatchStatus={async (match, status: MatchStatus) => {
+            onCancelMatch={async (match) => {
               await updateMatch(match.id, {
                 courtId: match.courtId,
                 title: match.title,
@@ -172,20 +172,20 @@ export default function App() {
                 startsAtUtc: match.startsAtUtc,
                 durationMinutes: match.durationMinutes,
                 maxPlayers: match.maxPlayers,
-                status,
+                status: 'Cancelled',
               });
               await reloadCourtsAndMatches();
             }}
-            onDeleteMatch={async (id) => {
-              await deleteMatch(id);
-              await reloadCourtsAndMatches();
-            }}
-            onJoinMatch={async (id) => {
-              await joinMatch(id);
-              await reloadCourtsAndMatches();
-            }}
-            onLeaveMatch={async (id) => {
-              await leaveMatch(id);
+            onStartMatch={async (match) => {
+              await updateMatch(match.id, {
+                courtId: match.courtId,
+                title: match.title,
+                description: match.description,
+                startsAtUtc: match.startsAtUtc,
+                durationMinutes: match.durationMinutes,
+                maxPlayers: match.maxPlayers,
+                status: 'InProgress',
+              });
               await reloadCourtsAndMatches();
             }}
           />

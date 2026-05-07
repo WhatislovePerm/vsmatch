@@ -45,6 +45,9 @@ public class MatchService : IMatchService
         var court = await _courts.GetByIdAsync(req.CourtId, ct)
             ?? throw new InvalidOperationException("Court not found.");
 
+        if (await _matches.HasActiveMatchForCourtAsync(req.CourtId, exceptMatchId: null, ct))
+            throw new InvalidOperationException("Court already has an active match.");
+
         var match = new Match
         {
             Id = Guid.NewGuid(),

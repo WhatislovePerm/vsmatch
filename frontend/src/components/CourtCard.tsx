@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import type { Court, Match, MatchStatus } from '../types';
+import type { Court, Match } from '../types';
 
 interface Props {
   court: Court;
@@ -12,23 +12,8 @@ interface Props {
     durationMinutes: number;
     maxPlayers: number;
   }) => Promise<void>;
-  onChangeMatchStatus: (match: Match, status: MatchStatus) => Promise<void>;
-  onDeleteMatch: (id: string) => Promise<void>;
-  onJoinMatch: (id: string) => Promise<void>;
-  onLeaveMatch: (id: string) => Promise<void>;
-}
-
-const statusLabels: Record<MatchStatus, string> = {
-  Scheduled: 'Запланирован',
-  Ready: 'Готов',
-  InProgress: 'Идёт',
-  Completed: 'Завершён',
-  Cancelled: 'Отменён',
-};
-
-function toLocalInputValue(date: Date) {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+  onCancelMatch: (match: Match) => Promise<void>;
+  onStartMatch: (match: Match) => Promise<void>;
 }
 
 export function CourtCard({
@@ -36,16 +21,15 @@ export function CourtCard({
   matches,
   onClose,
   onCreateMatch,
-  onChangeMatchStatus,
-  onDeleteMatch,
-  onJoinMatch,
-  onLeaveMatch,
+  onCancelMatch,
+  onStartMatch,
 }: Props) {
   const [title, setTitle] = useState('Матч');
-  const [startsAt, setStartsAt] = useState(toLocalInputValue(new Date(Date.now() + 60 * 60_000)));
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [busy, setBusy] = useState(false);
+  const [copiedMatchId, setCopiedMatchId] = useState<string | null>(null);
   const activeMatches = matches.filter((m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress');
+  const hasActiveMatch = activeMatches.length > 0;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,7 +38,7 @@ export function CourtCard({
       await onCreateMatch({
         title,
         description: null,
-        startsAtUtc: new Date(startsAt).toISOString(),
+        startsAtUtc: new Date().toISOString(),
         durationMinutes: 90,
         maxPlayers,
       });
@@ -71,7 +55,7 @@ export function CourtCard({
       </button>
       <h2 className="court-card__title">{court.name}</h2>
       <div className={`court-card__availability ${court.isFree ? 'is-free' : 'is-busy'}`}>
-        IsFree: {court.isFree ? 'true · свободна' : 'false · занята'}
+        {hasActiveMatch ? 'На площадке уже играют' : 'Свободно'}
       </div>
 
       <dl className="court-card__meta">
@@ -99,26 +83,18 @@ export function CourtCard({
 
       <section className="court-card__section">
         <h3>Матчи</h3>
-        {matches.length === 0 ? (
+        {activeMatches.length === 0 ? (
           <p className="court-card__empty">Матчей пока нет</p>
         ) : (
           <div className="matches">
-            {matches.map((match) => (
+            {activeMatches.map((match) => (
               <article className="match-row" key={match.id}>
                 <div>
                   <strong>{match.title}</strong>
-                  <span>
-                    {new Date(match.startsAtUtc).toLocaleString('ru-RU', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                    {' · '}
-                    {match.currentPlayers}/{match.maxPlayers}
-                  </span>
+                  <span>{match.currentPlayers}/{match.maxPlayers} игроков</span>
                   {match.players.length > 0 && (
                     <ul className="match-row__players">
+                      <li className="match-row__players-title">Игроки</li>
                       {match.players.map((player) => (
                         <li key={player.userId}>{player.displayName}</li>
                       ))}
@@ -127,23 +103,25 @@ export function CourtCard({
                   <button
                     className="match-row__invite"
                     type="button"
-                    onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${match.inviteUrl}`)}
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(`${window.location.origin}${match.inviteUrl}`);
+                      setCopiedMatchId(match.id);
+                    }}
                   >
-                    Скопировать ссылку
+                    <span>{copiedMatchId === match.id ? 'Скопировано' : 'Скопировать ссылку'}</span>
+                    <span className="match-row__copy-icon" aria-hidden="true">⧉</span>
                   </button>
                 </div>
-                <select
-                  value={match.status}
-                  onChange={(e) => onChangeMatchStatus(match, e.target.value as MatchStatus)}
-                >
-                  {Object.entries(statusLabels).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
                 <div className="match-row__actions">
-                  <button type="button" onClick={() => onJoinMatch(match.id)}>+</button>
-                  <button type="button" onClick={() => onLeaveMatch(match.id)}>−</button>
-                  <button type="button" onClick={() => onDeleteMatch(match.id)}>×</button>
+                  {match.currentPlayers < 2 ? (
+                    <button className="match-row__danger" type="button" onClick={() => onCancelMatch(match)}>
+                      Отменить матч
+                    </button>
+                  ) : match.status !== 'InProgress' ? (
+                    <button className="match-row__primary" type="button" onClick={() => onStartMatch(match)}>
+                      Начать матч
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
@@ -154,19 +132,20 @@ export function CourtCard({
         )}
       </section>
 
-      <form className="match-form" onSubmit={submit}>
-        <h3>Создать матч</h3>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название" />
-        <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
-        <input
-          type="number"
-          min={2}
-          max={50}
-          value={maxPlayers}
-          onChange={(e) => setMaxPlayers(Number(e.target.value))}
-        />
-        <button disabled={busy}>{busy ? 'Создаём…' : 'Создать'}</button>
-      </form>
+      {!hasActiveMatch && (
+        <form className="match-form" onSubmit={submit}>
+          <h3>Создать матч</h3>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название" />
+          <input
+            type="number"
+            min={2}
+            max={50}
+            value={maxPlayers}
+            onChange={(e) => setMaxPlayers(Number(e.target.value))}
+          />
+          <button disabled={busy}>{busy ? 'Создаём…' : 'Создать'}</button>
+        </form>
+      )}
     </div>
   );
 }
