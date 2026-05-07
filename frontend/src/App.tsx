@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { fetchCourts } from './api/courts';
 import { createMatch, fetchMatches, joinMatchByInvite, updateMatch } from './api/matches';
 import { getMe, type Me } from './api/auth';
@@ -6,7 +7,8 @@ import { clearToken, loadToken } from './auth/storage';
 import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
-import { AuthCallback } from './components/AuthCallback';
+import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
+import { Badge, IconButton } from './components/ui';
 import type { Court, Match } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
@@ -31,6 +33,12 @@ export default function App() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selected, setSelected] = useState<Court | null>(null);
+
+  const reloadCourtsAndMatches = useCallback(async () => {
+    const [courtsRes, matchesRes] = await Promise.all([fetchCourts(), fetchMatches()]);
+    setCourts(courtsRes);
+    setMatches(matchesRes);
+  }, []);
 
   const loadUserAndCourts = useCallback(async () => {
     try {
@@ -63,22 +71,6 @@ export default function App() {
     if (nextSelected) setSelected(nextSelected);
   }, [courts, selected]);
 
-  /*const loadUserAndCourts = useCallback(async () => {
-  try {
-    const courtsRes = await fetchCourts();
-    setCourts(courtsRes);
-
-    const meRes = await getMe().catch(() => null);
-    setMe(meRes);
-
-    setView('app');
-  } catch (e) {
-    setCourts([]);
-    setView('app'); // 👈 не выкидываем в login
-  }
-}, []);*/
-
-
   useEffect(() => {
     if (view === 'loading') loadUserAndCourts();
   }, [view, loadUserAndCourts]);
@@ -90,7 +82,7 @@ export default function App() {
       reloadCourtsAndMatches().catch(() => undefined);
     });
     return () => events.close();
-  }, [view]);
+  }, [view, reloadCourtsAndMatches]);
 
   const handleLogout = () => {
     clearToken();
@@ -99,12 +91,6 @@ export default function App() {
     setMatches([]);
     setSelected(null);
     setView('login');
-  };
-
-  const reloadCourtsAndMatches = async () => {
-    const [courtsRes, matchesRes] = await Promise.all([fetchCourts(), fetchMatches()]);
-    setCourts(courtsRes);
-    setMatches(matchesRes);
   };
 
   if (view === 'callback') {
@@ -120,36 +106,47 @@ export default function App() {
   }
 
   if (view === 'login') return <Login error={loginError} />;
+  if (view === 'loading') return <FullScreenLoader />;
 
-  if (view === 'loading') {
-    return (
-      <div className="login">
-        <div className="login__card">
-          <div className="login__logo">⚽</div>
-          <p className="login__subtitle">Загружаем…</p>
-        </div>
-      </div>
-    );
-  }
+  const freeCount = courts.filter((c) => c.isFree).length;
 
   return (
-    <div className="app">
-      <header className="app__header">
-        <div className="app__brand">
-          <span className="app__logo">⚽</span>
-          <span>VSMatch</span>
+    <div className="h-screen flex flex-col bg-[--color-page]">
+      <header className="flex items-center justify-between px-5 sm:px-7 py-3.5 bg-[--color-card]/90 backdrop-blur-md border-b border-[--color-line] z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-[14px] bg-[--color-ink-3] text-white flex items-center justify-center text-[18px]">
+            ⚽
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="font-bold text-[15px] tracking-tight text-[--color-ink]">VSMatch</span>
+            <span className="text-[11px] text-[--color-muted] hidden sm:block">Москва · САО</span>
+          </div>
         </div>
-        <div className="app__header-right">
-          <span className="app__stat">{courts.length} коробок</span>
-          <span className="app__stat">{courts.filter((c) => c.isFree).length} свободно</span>
-          {me && <span className="app__user">{me.name}</span>}
-          <button className="app__logout" onClick={handleLogout}>
-            Выйти
-          </button>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Badge tone="neutral" className="hidden sm:inline-flex">
+            {courts.length} коробок
+          </Badge>
+          <Badge tone={freeCount > 0 ? 'success' : 'neutral'}>
+            {freeCount} свободно
+          </Badge>
+          {me && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[--color-subtle] border border-[--color-line]">
+              <div className="w-6 h-6 rounded-full bg-[--color-ink-3] text-white flex items-center justify-center text-[11px] font-semibold">
+                {(me.name?.[0] ?? '?').toUpperCase()}
+              </div>
+              <span className="text-[13px] font-medium text-[--color-ink-2] max-w-[140px] truncate">
+                {me.name}
+              </span>
+            </div>
+          )}
+          <IconButton onClick={handleLogout} aria-label="Выйти" variant="subtle">
+            <LogOut size={16} />
+          </IconButton>
         </div>
       </header>
 
-      <main className="app__main">
+      <main className="flex-1 relative overflow-hidden">
         <CourtMap
           courts={courts}
           selectedId={selected?.id ?? null}

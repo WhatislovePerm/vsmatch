@@ -33,11 +33,15 @@ export function AuthCallback({ onError, onSuccess }: Props) {
     onSuccess();
   }, [onError, onSuccess]);
 
+  return <FullScreenLoader label="Завершаем вход…" />;
+}
+
+export function FullScreenLoader({ label = 'Загружаем…' }: { label?: string }) {
   return (
-    <div className="login">
-      <div className="login__card">
-        <div className="login__logo">⚽</div>
-        <p className="login__subtitle">Завершаем вход…</p>
+    <div className="min-h-screen flex items-center justify-center bg-[--color-page]">
+      <div className="flex flex-col items-center gap-5">
+        <div className="w-12 h-12 rounded-full border-[3px] border-[--color-line] border-t-[--color-ink-3] animate-spin" />
+        <p className="text-[14px] text-[--color-muted]">{label}</p>
       </div>
     </div>
   );

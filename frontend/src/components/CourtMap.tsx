@@ -1,4 +1,6 @@
-import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import L from 'leaflet';
+import { useMemo } from 'react';
 import type { Court } from '../types';
 
 interface Props {
@@ -9,26 +11,62 @@ interface Props {
 
 const MOSCOW_CENTER: [number, number] = [55.83, 37.52];
 
+function makeIcon(isFree: boolean, active: boolean): L.DivIcon {
+  const cls = [
+    'court-marker__pin',
+    isFree ? 'court-marker__pin--free' : 'court-marker__pin--busy',
+    active && 'court-marker__pin--active',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  // SVG ножка ("⚽")
+  const html = `<div class="${cls}" aria-hidden="true">⚽</div>`;
+  const size = active ? 36 : 28;
+  return L.divIcon({
+    className: 'court-marker',
+    html,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 export function CourtMap({ courts, selectedId, onSelect }: Props) {
+  // Кэшируем иконки чтобы не плодить тонны DivIcon
+  const icons = useMemo(() => {
+    return {
+      free: makeIcon(true, false),
+      busy: makeIcon(false, false),
+      freeActive: makeIcon(true, true),
+      busyActive: makeIcon(false, true),
+    };
+  }, []);
+
   return (
-    <MapContainer center={MOSCOW_CENTER} zoom={12} className="map" scrollWheelZoom>
+    <MapContainer
+      center={MOSCOW_CENTER}
+      zoom={12}
+      className="absolute inset-0"
+      scrollWheelZoom
+      zoomControl={true}
+    >
+      {/* Carto Voyager — светлые читаемые тайлы */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> · &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        subdomains="abcd"
+        maxZoom={19}
       />
       {courts.map((c) => {
         const active = c.id === selectedId;
+        const icon = c.isFree
+          ? active ? icons.freeActive : icons.free
+          : active ? icons.busyActive : icons.busy;
         return (
-          <CircleMarker
+          <Marker
             key={c.id}
-            center={[c.lat, c.lon]}
-            radius={active ? 10 : 7}
-            pathOptions={{
-              color: active ? '#fff' : '#22c55e',
-              weight: active ? 3 : 1,
-              fillColor: active ? '#16a34a' : c.isFree ? '#22c55e' : '#ef4444',
-              fillOpacity: 0.9,
-            }}
+            position={[c.lat, c.lon]}
+            icon={icon}
             eventHandlers={{ click: () => onSelect(c) }}
           />
         );
