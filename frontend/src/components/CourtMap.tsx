@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import maplibregl, {
   type Map as MlMap,
   type Marker as MlMarker,
@@ -14,30 +14,25 @@ interface Props {
 
 const MOSCOW_CENTER: [number, number] = [37.52, 55.83]; // [lon, lat]
 
-// Светлый минималистичный raster-стиль (Carto Positron на основе OSM).
-// Никаких внешних style.json — всё инлайн, максимально надёжно.
+// Стандартные OSM-тайлы — самые надёжные, бесплатные, работают везде.
 const MAP_STYLE: StyleSpecification = {
   version: 8,
   sources: {
-    'carto-positron': {
+    osm: {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       ],
       tileSize: 256,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> · &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxzoom: 19,
     },
   },
   layers: [
     {
-      id: 'carto-positron',
+      id: 'osm',
       type: 'raster',
-      source: 'carto-positron',
+      source: 'osm',
     },
   ],
 };
@@ -47,6 +42,7 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
   const mapRef = useRef<MlMap | null>(null);
   const markersRef = useRef<Map<string, { marker: MlMarker; el: HTMLDivElement }>>(new Map());
   const onSelectRef = useRef(onSelect);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -57,26 +53,45 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
     const container = containerRef.current;
     if (!container) return;
 
-    const map = new maplibregl.Map({
-      container,
-      style: MAP_STYLE,
-      center: MOSCOW_CENTER,
-      zoom: 11,
-      attributionControl: false,
-    });
+    let map: MlMap;
+    try {
+      map = new maplibregl.Map({
+        container,
+        style: MAP_STYLE,
+        center: MOSCOW_CENTER,
+        zoom: 11,
+        attributionControl: false,
+      });
+    } catch (e) {
+      setMapError(`Не удалось создать карту: ${(e as Error).message}`);
+      return;
+    }
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
+    map.on('error', (e) => {
+      console.error('[Map error]', e);
+      const msg = (e?.error as Error | undefined)?.message ?? 'unknown error';
+      setMapError(msg);
+    });
+
+    map.on('load', () => {
+      // Лог чтобы видеть что карта точно дошла до load
+      console.log('[Map] loaded');
+      map.resize();
+    });
+
     mapRef.current = map;
 
     // Авто-resize при изменении размеров контейнера (фикс "0×0 при первом монтаже")
-    const resizeObserver = new ResizeObserver(() => {
-      map.resize();
-    });
+    const resizeObserver = new ResizeObserver(() => map.resize());
     resizeObserver.observe(container);
+    // На всякий случай — после следующего тика
+    const t = setTimeout(() => map.resize(), 100);
 
     return () => {
+      clearTimeout(t);
       resizeObserver.disconnect();
       markersRef.current.clear();
       map.remove();
@@ -127,7 +142,17 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
     else map.once('load', apply);
   }, [courts, selectedId]);
 
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return (
+    <div className="absolute inset-0">
+      <div ref={containerRef} className="absolute inset-0" />
+      {mapError && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] max-w-md px-4 py-3 rounded-[14px] bg-danger-bg border border-danger-line text-danger text-[12.5px] shadow-md">
+          <div className="font-bold mb-1">Ошибка карты</div>
+          <div className="break-words">{mapError}</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function markerClass(c: Court, active: boolean): string {
