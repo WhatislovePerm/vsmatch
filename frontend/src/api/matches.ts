@@ -8,6 +8,12 @@ export async function fetchMatches(courtId?: string): Promise<Match[]> {
   return res.json();
 }
 
+export async function fetchMyMatchHistory(): Promise<Match[]> {
+  const res = await authFetch('/api/matches/me/history');
+  if (!res.ok) throw new Error(`Failed to load match history: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchMatchByInvite(inviteCode: string): Promise<Match> {
   const res = await authFetch(`/api/matches/invite/${encodeURIComponent(inviteCode)}`);
   if (!res.ok) throw new Error(`Failed to load match invite: ${res.status}`);

@@ -26,6 +26,10 @@ public class MatchesController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetAll([FromQuery] Guid? courtId, CancellationToken ct)
         => Ok(await _matches.GetAllAsync(courtId, ct));
 
+    [HttpGet("me/history")]
+    public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetMyHistory(CancellationToken ct)
+        => Ok(await _matches.GetHistoryByUserAsync(GetUserId(), ct));
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<MatchDto>> GetById(Guid id, CancellationToken ct)
     {

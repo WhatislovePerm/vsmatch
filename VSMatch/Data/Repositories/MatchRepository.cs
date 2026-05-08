@@ -30,6 +30,17 @@ public class MatchRepository : BaseRepository<Match>, IMatchRepository
             .OrderBy(m => m.StartsAtUtc)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Match>> ListHistoryByUserAsync(Guid userId, CancellationToken ct = default)
+        => await Set.Include(m => m.Court)
+            .Include(m => m.Players)
+            .ThenInclude(p => p.User)
+            .AsNoTracking()
+            .Where(m =>
+                (m.Status == MatchStatus.Completed || m.Status == MatchStatus.Cancelled) &&
+                m.Players.Any(p => p.UserId == userId))
+            .OrderByDescending(m => m.ResultSubmittedAt ?? m.UpdatedAt ?? m.CreatedAt)
+            .ToListAsync(ct);
+
     public Task<Match?> GetByInviteCodeAsync(string inviteCode, CancellationToken ct = default)
         => Set.Include(m => m.Court)
             .Include(m => m.Players)

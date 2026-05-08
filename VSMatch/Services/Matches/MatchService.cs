@@ -26,6 +26,12 @@ public class MatchService : IMatchService
         return matches.Select(ToDto).ToList();
     }
 
+    public async Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        var matches = await _matches.ListHistoryByUserAsync(userId, ct);
+        return matches.Select(ToDto).ToList();
+    }
+
     public async Task<MatchDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var match = await _matches.GetByIdAsync(id, ct);

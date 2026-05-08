@@ -1,9 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import {
   Check,
-  CircleCheck,
   Copy,
-  History,
   MapPin,
   Play,
   Shuffle,
@@ -56,11 +54,7 @@ export function CourtCard({
   const activeMatches = matches.filter(
     (m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress',
   );
-  const historyMatches = matches
-    .filter((m) => m.status === 'Completed' || m.status === 'Cancelled')
-    .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime());
   const hasActiveMatch = activeMatches.length > 0;
-  const [tab, setTab] = useState<'current' | 'history'>('current');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -150,33 +144,11 @@ export function CourtCard({
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-muted">
               Матчи
             </h3>
-            <div className="inline-grid grid-cols-2 rounded-[14px] bg-subtle border border-line p-0.5">
-              <button
-                type="button"
-                onClick={() => setTab('current')}
-                className={[
-                  'h-8 px-3 rounded-[11px] text-[12px] font-semibold transition-colors',
-                  tab === 'current' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink',
-                ].join(' ')}
-              >
-                Сейчас
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('history')}
-                className={[
-                  'h-8 px-3 rounded-[11px] text-[12px] font-semibold transition-colors',
-                  tab === 'history' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink',
-                ].join(' ')}
-              >
-                История
-              </button>
-            </div>
           </div>
 
-          {tab === 'current' && activeMatches.length === 0 ? (
+          {activeMatches.length === 0 ? (
             <p className="text-[13px] text-muted">Матчей пока нет</p>
-          ) : tab === 'current' ? (
+          ) : (
             <div className="flex flex-col gap-2.5">
               {activeMatches.map((match) => (
                 <MatchRow
@@ -208,19 +180,11 @@ export function CourtCard({
                 Активный матч делает площадку занятой.
               </p>
             </div>
-          ) : historyMatches.length === 0 ? (
-            <p className="text-[13px] text-muted">Истории пока нет</p>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {historyMatches.map((match) => (
-                <HistoryMatchRow key={match.id} match={match} />
-              ))}
-            </div>
           )}
         </section>
 
         {/* Создать матч */}
-        {!hasActiveMatch && tab === 'current' && (
+        {!hasActiveMatch && (
           <form
             onSubmit={submit}
             className="mt-5 pt-5 border-t border-line flex flex-col gap-3"
@@ -526,45 +490,5 @@ function ResultForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-function HistoryMatchRow({ match }: { match: Match }) {
-  const teamA = match.players.filter((p) => p.team === 'TeamA');
-  const teamB = match.players.filter((p) => p.team === 'TeamB');
-  const finishedAt = match.resultSubmittedAt ?? match.updatedAt ?? match.createdAt;
-  const completed = match.status === 'Completed';
-
-  return (
-    <article className="bg-subtle border border-line rounded-[20px] p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-semibold text-[14px] text-ink truncate">{match.title}</div>
-          <div className="mt-1 flex items-center gap-1.5 text-[12.5px] text-muted">
-            <History size={13} /> {new Date(finishedAt).toLocaleDateString('ru-RU')}
-          </div>
-        </div>
-        <Badge tone={completed ? 'success' : 'neutral'} iconLeft={completed ? <CircleCheck size={13} /> : undefined}>
-          {completed ? 'Завершён' : 'Отменён'}
-        </Badge>
-      </div>
-
-      {completed && (
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[16px] bg-white border border-line p-3">
-          <div className="text-[12px] font-semibold text-muted text-right">Команда A</div>
-          <div className="text-[20px] font-bold text-ink tabular-nums">
-            {match.teamAScore ?? 0}:{match.teamBScore ?? 0}
-          </div>
-          <div className="text-[12px] font-semibold text-muted">Команда B</div>
-        </div>
-      )}
-
-      {match.players.length > 0 && (
-        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-          <TeamPlayers title="Команда A" players={teamA} showStats />
-          <TeamPlayers title="Команда B" players={teamB} showStats />
-        </div>
-      )}
-    </article>
   );
 }
