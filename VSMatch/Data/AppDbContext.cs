@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.CourtId);
+            e.HasIndex(x => new { x.CourtId, x.Status });
             e.HasIndex(x => x.CreatedByUserId);
             e.HasIndex(x => x.InviteCode).IsUnique();
             e.Property(x => x.InviteCode).HasMaxLength(32).IsRequired();

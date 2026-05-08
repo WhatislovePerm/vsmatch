@@ -5,6 +5,7 @@ namespace VSMatch.Services.Auth;
 public interface IAuthService
 {
     string BuildVkIdAuthorizeUrl();
+    Task<MeDto> GetMeAsync(Guid userId, CancellationToken ct = default);
     Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct);
     Task<AuthResponse> ExchangeVkIdCodeAsync(VkIdExchangeRequest req, CancellationToken ct);
     Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest req, CancellationToken ct);

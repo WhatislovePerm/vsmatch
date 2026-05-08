@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using System.Security.Claims;
-using VSMatch.Data.Repositories;
+using VSMatch.Domain;
 using VSMatch.Dtos.Auth;
 using VSMatch.Options;
 using VSMatch.Services.Auth;
@@ -14,13 +13,13 @@ namespace VSMatch.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _auth;
-    private readonly IUserRepository _users;
+    private readonly ICurrentUser _currentUser;
     private readonly VkIdOptions _vkOpt;
 
-    public AuthController(IAuthService auth, IUserRepository users, IOptions<VkIdOptions> vkOpt)
+    public AuthController(IAuthService auth, ICurrentUser currentUser, IOptions<VkIdOptions> vkOpt)
     {
         _auth = auth;
-        _users = users;
+        _currentUser = currentUser;
         _vkOpt = vkOpt.Value;
     }
 
@@ -43,9 +42,9 @@ public class AuthController : ControllerBase
         {
             return Ok(await _auth.ExchangeVkIdCodeAsync(req, ct));
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
@@ -68,30 +67,26 @@ public class AuthController : ControllerBase
             }
             return Ok(res);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
             if (!string.IsNullOrEmpty(frontend))
                 return Redirect($"{frontend}#error={Uri.EscapeDataString(ex.Message)}");
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
     [Authorize]
     [HttpGet("me")]
-    public async Task<ActionResult<object>> Me(CancellationToken ct)
+    public async Task<ActionResult<MeDto>> Me(CancellationToken ct)
     {
-        var userId = GetUserId();
-        var user = await _users.GetByIdAsync(userId, ct);
-        if (user is null) return Unauthorized();
-
-        return Ok(new
+        try
         {
-            userId = user.Id,
-            name = user.DisplayName,
-            vkUserId = user.VkUserId,
-            email = user.Email,
-            rating = user.Rating,
-        });
+            return Ok(await _auth.GetMeAsync(_currentUser.Id, ct));
+        }
+        catch (AppException ex)
+        {
+            return ApiErrors.ToActionResult(ex);
+        }
     }
 
     [Authorize]
@@ -100,20 +95,11 @@ public class AuthController : ControllerBase
     {
         try
         {
-            return Ok(await _auth.UpdateProfileAsync(GetUserId(), req, ct));
+            return Ok(await _auth.UpdateProfileAsync(_currentUser.Id, req, ct));
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
-    }
-
-    private Guid GetUserId()
-    {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(value, out var userId))
-            throw new InvalidOperationException("Invalid user id in token.");
-
-        return userId;
     }
 }

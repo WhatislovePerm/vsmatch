@@ -15,9 +15,18 @@ var builder = WebApplication.CreateBuilder(args);
 // Options
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<VkIdOptions>(builder.Configuration.GetSection("VkId"));
+builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection("Cors"));
 
-// CORS (открыто для dev — на проде сузить)
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+var cors = builder.Configuration.GetSection("Cors").Get<CorsOptions>() ?? new CorsOptions();
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+{
+    if (cors.AllowedOrigins.Length > 0)
+        p.WithOrigins(cors.AllowedOrigins).AllowAnyHeader().AllowAnyMethod();
+    else if (builder.Environment.IsDevelopment())
+        p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    else
+        p.WithOrigins("https://vsmatch.ru", "https://www.vsmatch.ru").AllowAnyHeader().AllowAnyMethod();
+}));
 
 // EF Core + PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(opt =>
@@ -34,6 +43,8 @@ builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddSingleton<IVkIdStateStore, InMemoryVkIdStateStore>();
 builder.Services.AddHttpClient<IVkIdClient, VkIdClient>();
 
@@ -58,6 +69,19 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
+        };
+        opt.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                if (ctx.Request.Path == "/api/matches/events" &&
+                    ctx.Request.Query.TryGetValue("access_token", out var token))
+                {
+                    ctx.Token = token;
+                }
+
+                return Task.CompletedTask;
+            },
         };
     });
 builder.Services.AddAuthorization();
@@ -108,6 +132,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
 app.Run();

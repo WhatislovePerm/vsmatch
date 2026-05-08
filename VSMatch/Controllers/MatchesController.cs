@@ -1,9 +1,10 @@
-using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VSMatch.Data.Entities;
+using VSMatch.Domain;
 using VSMatch.Dtos.Matches;
+using VSMatch.Services.Auth;
 using VSMatch.Services.Matches;
 
 namespace VSMatch.Controllers;
@@ -15,20 +16,29 @@ public class MatchesController : ControllerBase
 {
     private readonly IMatchService _matches;
     private readonly IMatchEventHub _events;
+    private readonly ICurrentUser _currentUser;
 
-    public MatchesController(IMatchService matches, IMatchEventHub events)
+    public MatchesController(IMatchService matches, IMatchEventHub events, ICurrentUser currentUser)
     {
         _matches = matches;
         _events = events;
+        _currentUser = currentUser;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetAll([FromQuery] Guid? courtId, CancellationToken ct)
-        => Ok(await _matches.GetAllAsync(courtId, ct));
+    public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetAll(
+        [FromQuery] Guid? courtId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100,
+        CancellationToken ct = default)
+        => Ok(await _matches.GetAllAsync(courtId, page, pageSize, ct));
 
     [HttpGet("me/history")]
-    public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetMyHistory(CancellationToken ct)
-        => Ok(await _matches.GetHistoryByUserAsync(GetUserId(), ct));
+    public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetMyHistory(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+        => Ok(await _matches.GetHistoryByUserAsync(_currentUser.Id, page, pageSize, ct));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<MatchDto>> GetById(Guid id, CancellationToken ct)
@@ -49,13 +59,12 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var userId = GetUserId();
-            var created = await _matches.CreateAsync(req, userId, ct);
+            var created = await _matches.CreateAsync(req, _currentUser.Id, ct);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
@@ -64,30 +73,39 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var updated = await _matches.UpdateAsync(id, req, GetUserId(), ct);
+            var updated = await _matches.UpdateAsync(id, req, _currentUser.Id, ct);
             return updated is null ? NotFound() : Ok(updated);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
-        => await _matches.DeleteAsync(id, ct) ? NoContent() : NotFound();
+    {
+        try
+        {
+            return await _matches.DeleteAsync(id, _currentUser.Id, ct) ? NoContent() : NotFound();
+        }
+        catch (AppException ex)
+        {
+            return ApiErrors.ToActionResult(ex);
+        }
+    }
 
     [HttpPost("{id:guid}/players/me")]
     public async Task<ActionResult<MatchDto>> Join(Guid id, JoinMatchRequest? req, CancellationToken ct)
     {
         try
         {
-            var match = await _matches.JoinAsync(id, GetUserId(), req?.Team ?? MatchTeam.TeamA, ct);
+            var match = await _matches.JoinAsync(id, _currentUser.Id, req?.Team ?? MatchTeam.TeamA, ct);
             return match is null ? NotFound() : Ok(match);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
@@ -99,12 +117,12 @@ public class MatchesController : ControllerBase
             var match = await _matches.GetByInviteCodeAsync(inviteCode, ct);
             if (match is null) return NotFound();
 
-            var joined = await _matches.JoinAsync(match.Id, GetUserId(), req?.Team ?? MatchTeam.TeamA, ct);
+            var joined = await _matches.JoinAsync(match.Id, _currentUser.Id, req?.Team ?? MatchTeam.TeamA, ct);
             return joined is null ? NotFound() : Ok(joined);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
@@ -113,12 +131,12 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var match = await _matches.ShuffleTeamsAsync(id, GetUserId(), ct);
+            var match = await _matches.ShuffleTeamsAsync(id, _currentUser.Id, ct);
             return match is null ? NotFound() : Ok(match);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
@@ -127,12 +145,12 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var match = await _matches.SubmitResultAsync(id, req, GetUserId(), ct);
+            var match = await _matches.SubmitResultAsync(id, req, _currentUser.Id, ct);
             return match is null ? NotFound() : Ok(match);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
@@ -141,16 +159,15 @@ public class MatchesController : ControllerBase
     {
         try
         {
-            var match = await _matches.LeaveAsync(id, GetUserId(), ct);
+            var match = await _matches.LeaveAsync(id, _currentUser.Id, ct);
             return match is null ? NotFound() : Ok(match);
         }
-        catch (InvalidOperationException ex)
+        catch (AppException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ApiErrors.ToActionResult(ex);
         }
     }
 
-    [AllowAnonymous]
     [HttpGet("events")]
     public async Task Events(CancellationToken ct)
     {
@@ -164,14 +181,5 @@ public class MatchesController : ControllerBase
             await Response.WriteAsync(payload, Encoding.UTF8, ct);
             await Response.Body.FlushAsync(ct);
         }
-    }
-
-    private Guid GetUserId()
-    {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(value, out var userId))
-            throw new InvalidOperationException("Invalid user id in token.");
-
-        return userId;
     }
 }

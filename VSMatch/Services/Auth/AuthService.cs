@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using VSMatch.Data.Entities;
 using VSMatch.Data.Repositories;
+using VSMatch.Domain;
 using VSMatch.Dtos.Auth;
 using VSMatch.Options;
 
@@ -48,10 +49,18 @@ public class AuthService : IAuthService
                $"&code_challenge_method=S256";
     }
 
+    public async Task<MeDto> GetMeAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _users.GetByIdAsync(userId, ct)
+            ?? throw new NotFoundException("User not found.");
+
+        return new MeDto(user.Id, user.DisplayName, user.VkUserId, user.Email, user.Rating);
+    }
+
     public async Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct)
     {
         if (!_stateStore.TryGet(state, out var verifier))
-            throw new InvalidOperationException("Invalid or expired state.");
+            throw new ValidationException("Invalid or expired state.");
 
         _stateStore.Remove(state);
 
@@ -62,7 +71,7 @@ public class AuthService : IAuthService
         var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
 
         var vkUserId = info?.UserId ?? token.UserId
-            ?? throw new InvalidOperationException("VK ID did not return user_id.");
+            ?? throw new ValidationException("VK ID did not return user_id.");
 
         var user = await _users.GetByVkUserIdAsync(vkUserId, ct);
         if (user is null)
@@ -85,17 +94,17 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> ExchangeVkIdCodeAsync(VkIdExchangeRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Code))
-            throw new InvalidOperationException("code is required.");
+            throw new ValidationException("code is required.");
         if (string.IsNullOrWhiteSpace(req.CodeVerifier))
-            throw new InvalidOperationException("codeVerifier is required.");
+            throw new ValidationException("codeVerifier is required.");
         if (string.IsNullOrWhiteSpace(req.DeviceId))
-            throw new InvalidOperationException("deviceId is required.");
+            throw new ValidationException("deviceId is required.");
 
         var token = await _vk.ExchangeCodeAsync(req.Code, req.CodeVerifier, req.DeviceId, req.RedirectUri, ct);
         var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
 
         var vkUserId = info?.UserId ?? token.UserId
-            ?? throw new InvalidOperationException("VK ID did not return user_id.");
+            ?? throw new ValidationException("VK ID did not return user_id.");
 
         var user = await _users.GetByVkUserIdAsync(vkUserId, ct);
         if (user is null)
@@ -119,12 +128,12 @@ public class AuthService : IAuthService
     {
         var name = req.DisplayName?.Trim();
         if (string.IsNullOrWhiteSpace(name))
-            throw new InvalidOperationException("Display name is required.");
+            throw new ValidationException("Display name is required.");
         if (name.Length > 64)
-            throw new InvalidOperationException("Display name must be 64 characters or less.");
+            throw new ValidationException("Display name must be 64 characters or less.");
 
         var user = await _users.GetByIdAsync(userId, ct)
-            ?? throw new InvalidOperationException("User not found.");
+            ?? throw new NotFoundException("User not found.");
 
         user.DisplayName = name;
         _users.Update(user);

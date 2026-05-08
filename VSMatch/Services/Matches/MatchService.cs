@@ -1,58 +1,67 @@
+using Microsoft.EntityFrameworkCore;
+using VSMatch.Data;
 using VSMatch.Data.Entities;
 using VSMatch.Data.Repositories;
+using VSMatch.Domain;
+using VSMatch.Domain.Matches;
 using VSMatch.Dtos.Matches;
+using VSMatch.Mapping;
 
 namespace VSMatch.Services.Matches;
 
 public class MatchService : IMatchService
 {
+    private readonly AppDbContext _db;
     private readonly IMatchRepository _matches;
     private readonly ICourtRepository _courts;
     private readonly IMatchEventHub _events;
 
-    public MatchService(IMatchRepository matches, ICourtRepository courts, IMatchEventHub events)
+    public MatchService(AppDbContext db, IMatchRepository matches, ICourtRepository courts, IMatchEventHub events)
     {
+        _db = db;
         _matches = matches;
         _courts = courts;
         _events = events;
     }
 
-    public async Task<IReadOnlyList<MatchDto>> GetAllAsync(Guid? courtId = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MatchDto>> GetAllAsync(Guid? courtId = null, int page = 1, int pageSize = 100, CancellationToken ct = default)
     {
         var matches = courtId.HasValue
-            ? await _matches.ListByCourtAsync(courtId.Value, ct)
-            : await _matches.ListAsync(ct);
+            ? await _matches.ListByCourtAsync(courtId.Value, page, pageSize, ct)
+            : await _matches.ListPagedAsync(page, pageSize, ct);
 
-        return matches.Select(ToDto).ToList();
+        return matches.Select(MatchMapper.ToDto).ToList();
     }
 
-    public async Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, int page = 1, int pageSize = 50, CancellationToken ct = default)
     {
-        var matches = await _matches.ListHistoryByUserAsync(userId, ct);
-        return matches.Select(ToDto).ToList();
+        var matches = await _matches.ListHistoryByUserAsync(userId, page, pageSize, ct);
+        return matches.Select(MatchMapper.ToDto).ToList();
     }
 
     public async Task<MatchDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var match = await _matches.GetByIdAsync(id, ct);
-        return match is null ? null : ToDto(match);
+        return match is null ? null : MatchMapper.ToDto(match);
     }
 
     public async Task<MatchDto?> GetByInviteCodeAsync(string inviteCode, CancellationToken ct = default)
     {
         var match = await _matches.GetByInviteCodeAsync(inviteCode, ct);
-        return match is null ? null : ToDto(match);
+        return match is null ? null : MatchMapper.ToDto(match);
     }
 
     public async Task<MatchDto> CreateAsync(CreateMatchRequest req, Guid userId, CancellationToken ct = default)
     {
-        Validate(req.Title, req.DurationMinutes, req.MaxPlayers);
+        MatchValidationRules.Validate(req);
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
         var court = await _courts.GetByIdAsync(req.CourtId, ct)
-            ?? throw new InvalidOperationException("Court not found.");
+            ?? throw new NotFoundException("Court not found.");
 
         if (await _matches.HasActiveMatchForCourtAsync(req.CourtId, exceptMatchId: null, ct))
-            throw new InvalidOperationException("Court already has an active match.");
+            throw new ConflictException("Court already has an active match.");
 
         var match = new Match
         {
@@ -62,8 +71,8 @@ public class MatchService : IMatchService
             InviteCode = await GenerateInviteCodeAsync(ct),
             Title = req.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            TeamAName = NormalizeTeamName(req.TeamAName, "Команда A"),
-            TeamBName = NormalizeTeamName(req.TeamBName, "Команда B"),
+            TeamAName = MatchValidationRules.NormalizeTeamName(req.TeamAName, "Команда A"),
+            TeamBName = MatchValidationRules.NormalizeTeamName(req.TeamBName, "Команда B"),
             StartsAtUtc = DateTime.SpecifyKind(req.StartsAtUtc, DateTimeKind.Utc),
             DurationMinutes = req.DurationMinutes,
             MaxPlayers = req.MaxPlayers,
@@ -82,36 +91,38 @@ public class MatchService : IMatchService
         _courts.Update(court);
         await _matches.AddAsync(match, ct);
         await _matches.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         await _events.PublishChangedAsync(ct);
 
         match.Court = court;
-        return ToDto(match);
+        return MatchMapper.ToDto(match);
     }
 
     public async Task<MatchDto?> UpdateAsync(Guid id, UpdateMatchRequest req, Guid userId, CancellationToken ct = default)
     {
-        Validate(req.Title, req.DurationMinutes, req.MaxPlayers);
+        MatchValidationRules.Validate(req);
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
-        if (match.CreatedByUserId != userId && req.Status != match.Status)
-            throw new InvalidOperationException("Only match creator can change match status.");
+        EnsureCreator(match, userId);
         if (req.MaxPlayers < match.Players.Count)
-            throw new InvalidOperationException("Max players cannot be less than current players count.");
+            throw new ValidationException("Max players cannot be less than current players count.");
 
         var oldCourtId = match.CourtId;
         var newCourt = await _courts.GetByIdAsync(req.CourtId, ct)
-            ?? throw new InvalidOperationException("Court not found.");
+            ?? throw new NotFoundException("Court not found.");
 
         match.CourtId = req.CourtId;
         match.Title = req.Title.Trim();
         match.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
-        match.TeamAName = NormalizeTeamName(req.TeamAName, "Команда A");
-        match.TeamBName = NormalizeTeamName(req.TeamBName, "Команда B");
+        match.TeamAName = MatchValidationRules.NormalizeTeamName(req.TeamAName, "Команда A");
+        match.TeamBName = MatchValidationRules.NormalizeTeamName(req.TeamBName, "Команда B");
         match.StartsAtUtc = DateTime.SpecifyKind(req.StartsAtUtc, DateTimeKind.Utc);
         match.DurationMinutes = req.DurationMinutes;
         match.MaxPlayers = req.MaxPlayers;
-        match.Status = ValidateStatusTransition(match.Status, req.Status);
+        match.Status = MatchLifecycle.ValidateTransition(match.Status, req.Status);
         match.UpdatedAt = DateTime.UtcNow;
 
         _matches.Update(match);
@@ -120,16 +131,20 @@ public class MatchService : IMatchService
         await RecalculateCourtAvailabilityAsync(oldCourtId, exceptMatchId: match.Id, ct);
         await RecalculateCourtAvailabilityAsync(req.CourtId, exceptMatchId: null, ct);
         await _matches.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         await _events.PublishChangedAsync(ct);
 
         match.Court = newCourt;
-        return ToDto(match);
+        return MatchMapper.ToDto(match);
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, Guid userId, CancellationToken ct = default)
     {
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return false;
+        EnsureCreator(match, userId);
 
         var courtId = match.CourtId;
         _matches.Remove(match);
@@ -137,6 +152,7 @@ public class MatchService : IMatchService
 
         await RecalculateCourtAvailabilityAsync(courtId, exceptMatchId: null, ct);
         await _matches.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         await _events.PublishChangedAsync(ct);
         return true;
     }
@@ -145,12 +161,12 @@ public class MatchService : IMatchService
     {
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
-        if (match.Status is MatchStatus.Completed or MatchStatus.Cancelled)
-            throw new InvalidOperationException("Cannot join a completed or cancelled match.");
+        if (!MatchLifecycle.IsActive(match.Status))
+            throw new InvalidMatchStateException("Cannot join a completed or cancelled match.");
         if (match.Players.Any(p => p.UserId == userId))
-            return ToDto(match);
+            return MatchMapper.ToDto(match);
         if (match.Players.Count >= match.MaxPlayers)
-            throw new InvalidOperationException("Match is full.");
+            throw new ConflictException("Match is full.");
 
         match.Players.Add(new MatchPlayer
         {
@@ -175,8 +191,8 @@ public class MatchService : IMatchService
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
         EnsureCreator(match, userId);
-        if (match.Status is MatchStatus.Completed or MatchStatus.Cancelled)
-            throw new InvalidOperationException("Final match teams cannot be changed.");
+        if (!MatchLifecycle.IsActive(match.Status))
+            throw new InvalidMatchStateException("Final match teams cannot be changed.");
 
         var players = match.Players
             .OrderBy(_ => Random.Shared.Next())
@@ -195,22 +211,24 @@ public class MatchService : IMatchService
 
     public async Task<MatchDto?> SubmitResultAsync(Guid id, SubmitMatchResultRequest req, Guid userId, CancellationToken ct = default)
     {
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
         EnsureCreator(match, userId);
         if (match.Status != MatchStatus.InProgress)
-            throw new InvalidOperationException("Only an active match can be completed with result.");
+            throw new InvalidMatchStateException("Only an active match can be completed with result.");
         if (req.TeamAScore < 0 || req.TeamBScore < 0)
-            throw new InvalidOperationException("Score cannot be negative.");
+            throw new ValidationException("Score cannot be negative.");
 
         if (req.Players.Select(p => p.UserId).Distinct().Count() != req.Players.Count)
-            throw new InvalidOperationException("Duplicate player stats are not allowed.");
+            throw new ValidationException("Duplicate player stats are not allowed.");
 
         var statsByUserId = req.Players.ToDictionary(p => p.UserId);
         if (statsByUserId.Count != match.Players.Count || match.Players.Any(p => !statsByUserId.ContainsKey(p.UserId)))
-            throw new InvalidOperationException("Stats must be provided for every match player.");
+            throw new ValidationException("Stats must be provided for every match player.");
         if (req.Players.Any(p => p.Goals < 0 || p.Assists < 0))
-            throw new InvalidOperationException("Goals and assists cannot be negative.");
+            throw new ValidationException("Goals and assists cannot be negative.");
 
         foreach (var player in match.Players)
         {
@@ -218,7 +236,7 @@ public class MatchService : IMatchService
                 throw new InvalidOperationException("Match player user is missing.");
 
             var stats = statsByUserId[player.UserId];
-            var delta = CalculateRatingDelta(player.Team, req.TeamAScore, req.TeamBScore, stats.Goals, stats.Assists);
+            var delta = RatingCalculator.CalculateDelta(player.Team, req.TeamAScore, req.TeamBScore, stats.Goals, stats.Assists);
 
             player.Goals = stats.Goals;
             player.Assists = stats.Assists;
@@ -236,6 +254,7 @@ public class MatchService : IMatchService
         await _matches.SaveChangesAsync(ct);
         await RecalculateCourtAvailabilityAsync(match.CourtId, exceptMatchId: null, ct);
         await _matches.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         await _events.PublishChangedAsync(ct);
 
         return await GetByIdAsync(id, ct);
@@ -247,7 +266,7 @@ public class MatchService : IMatchService
         if (match is null) return null;
 
         var player = match.Players.FirstOrDefault(p => p.UserId == userId);
-        if (player is null) return ToDto(match);
+        if (player is null) return MatchMapper.ToDto(match);
 
         match.Players.Remove(player);
         if (match.Status == MatchStatus.Ready && match.Players.Count < 2)
@@ -271,42 +290,10 @@ public class MatchService : IMatchService
         _courts.Update(court);
     }
 
-    private static void Validate(string title, int durationMinutes, int maxPlayers)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-            throw new InvalidOperationException("Title is required.");
-        if (durationMinutes < 15 || durationMinutes > 240)
-            throw new InvalidOperationException("Duration must be between 15 and 240 minutes.");
-        if (maxPlayers < 2 || maxPlayers > 50)
-            throw new InvalidOperationException("Max players must be between 2 and 50.");
-    }
-
-    private static string NormalizeTeamName(string? value, string fallback)
-    {
-        var name = value?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-            return fallback;
-        if (name.Length > 64)
-            throw new InvalidOperationException("Team name must be 64 characters or less.");
-
-        return name;
-    }
-
     private static void EnsureCreator(Match match, Guid userId)
     {
         if (match.CreatedByUserId != userId)
-            throw new InvalidOperationException("Only match creator can do this.");
-    }
-
-    private static double CalculateRatingDelta(MatchTeam team, int teamAScore, int teamBScore, int goals, int assists)
-    {
-        var teamScore = team == MatchTeam.TeamA ? teamAScore : teamBScore;
-        var opponentScore = team == MatchTeam.TeamA ? teamBScore : teamAScore;
-        var resultDelta = teamScore == opponentScore
-            ? 5
-            : teamScore > opponentScore ? 25 : -15;
-
-        return resultDelta + goals * 3 + assists * 2;
+            throw new ForbiddenException("Only match creator can do this.");
     }
 
     private async Task<string> GenerateInviteCodeAsync(CancellationToken ct)
@@ -325,59 +312,4 @@ public class MatchService : IMatchService
 
         throw new InvalidOperationException("Could not generate unique invite code.");
     }
-
-    private static MatchStatus ValidateStatusTransition(MatchStatus current, MatchStatus next)
-    {
-        if (current == next) return next;
-        if (current == MatchStatus.Cancelled || current == MatchStatus.Completed)
-            throw new InvalidOperationException("Final match status cannot be changed.");
-
-        var allowed = current switch
-        {
-            MatchStatus.Scheduled => next is MatchStatus.Ready or MatchStatus.Cancelled,
-            MatchStatus.Ready => next is MatchStatus.InProgress or MatchStatus.Cancelled,
-            MatchStatus.InProgress => next is MatchStatus.Cancelled,
-            _ => false,
-        };
-
-        if (!allowed)
-            throw new InvalidOperationException($"Invalid status transition: {current} -> {next}.");
-
-        return next;
-    }
-
-    private static MatchDto ToDto(Match m) =>
-        new(
-            m.Id,
-            m.CourtId,
-            m.Court?.Name ?? string.Empty,
-            m.CreatedByUserId,
-            m.InviteCode,
-            $"/matches/join/{m.InviteCode}",
-            m.Title,
-            m.Description,
-            m.TeamAName,
-            m.TeamBName,
-            m.StartsAtUtc,
-            m.DurationMinutes,
-            m.MaxPlayers,
-            m.Players.Count,
-            m.Players
-                .OrderBy(p => p.JoinedAt)
-                .Select(p => new MatchPlayerDto(
-                    p.UserId,
-                    p.User?.DisplayName ?? p.UserId.ToString(),
-                    p.Team,
-                    p.Goals,
-                    p.Assists,
-                    p.User?.Rating ?? 1000,
-                    p.RatingDelta,
-                    p.JoinedAt))
-                .ToList(),
-            m.Status,
-            m.TeamAScore,
-            m.TeamBScore,
-            m.ResultSubmittedAt,
-            m.CreatedAt,
-            m.UpdatedAt);
 }
