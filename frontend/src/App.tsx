@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { fetchCourts } from './api/courts';
-import { createMatch, fetchMatches, joinMatchByInvite, updateMatch } from './api/matches';
+import {
+  createMatch,
+  fetchMatchByInvite,
+  fetchMatches,
+  joinMatch,
+  joinMatchByInvite,
+  shuffleTeams,
+  submitMatchResult,
+  updateMatch,
+} from './api/matches';
 import { getMe, updateProfile, type Me } from './api/auth';
 import { clearToken, loadToken } from './auth/storage';
 import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
-import { Badge, IconButton } from './components/ui';
+import { Badge, Button, IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
-import type { Court, Match } from './types';
+import type { Court, Match, MatchTeam, SubmitMatchResultRequest } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
 const PENDING_INVITE_KEY = 'vsmatch.pendingInvite';
@@ -35,6 +44,8 @@ export default function App() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [selected, setSelected] = useState<Court | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [pendingInviteMatch, setPendingInviteMatch] = useState<Match | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   const reloadCourtsAndMatches = useCallback(async () => {
     const [courtsRes, matchesRes] = await Promise.all([fetchCourts(), fetchMatches()]);
@@ -50,13 +61,10 @@ export default function App() {
       setMatches(matchesRes);
       const pendingInvite = localStorage.getItem(PENDING_INVITE_KEY);
       if (pendingInvite) {
-        const joined = await joinMatchByInvite(pendingInvite);
-        localStorage.removeItem(PENDING_INVITE_KEY);
+        const invited = await fetchMatchByInvite(pendingInvite);
         window.history.replaceState(null, '', '/');
-        const [freshCourts, freshMatches] = await Promise.all([fetchCourts(), fetchMatches()]);
-        setCourts(freshCourts);
-        setMatches(freshMatches);
-        const court = freshCourts.find((c) => c.id === joined.courtId);
+        setPendingInviteMatch(invited);
+        const court = courtsRes.find((c) => c.id === invited.courtId);
         if (court) setSelected(court);
       }
       setView('app');
@@ -93,6 +101,21 @@ export default function App() {
     setMatches([]);
     setSelected(null);
     setView('login');
+  };
+
+  const handleJoinInvite = async (team: MatchTeam) => {
+    if (!pendingInviteMatch) return;
+    setInviteBusy(true);
+    try {
+      const joined = await joinMatchByInvite(pendingInviteMatch.inviteCode, team);
+      localStorage.removeItem(PENDING_INVITE_KEY);
+      setPendingInviteMatch(null);
+      await reloadCourtsAndMatches();
+      const court = courts.find((c) => c.id === joined.courtId);
+      if (court) setSelected(court);
+    } finally {
+      setInviteBusy(false);
+    }
   };
 
   if (view === 'callback') {
@@ -168,6 +191,14 @@ export default function App() {
               await createMatch({ courtId: selected.id, ...input });
               await reloadCourtsAndMatches();
             }}
+            onJoinMatch={async (match, team) => {
+              await joinMatch(match.id, team);
+              await reloadCourtsAndMatches();
+            }}
+            onShuffleTeams={async (match) => {
+              await shuffleTeams(match.id);
+              await reloadCourtsAndMatches();
+            }}
             onCancelMatch={async (match) => {
               await updateMatch(match.id, {
                 courtId: match.courtId,
@@ -192,16 +223,8 @@ export default function App() {
               });
               await reloadCourtsAndMatches();
             }}
-            onCompleteMatch={async (match) => {
-              await updateMatch(match.id, {
-                courtId: match.courtId,
-                title: match.title,
-                description: match.description,
-                startsAtUtc: match.startsAtUtc,
-                durationMinutes: match.durationMinutes,
-                maxPlayers: match.maxPlayers,
-                status: 'Completed',
-              });
+            onSubmitResult={async (match, result: SubmitMatchResultRequest) => {
+              await submitMatchResult(match.id, result);
               await reloadCourtsAndMatches();
             }}
           />
@@ -218,7 +241,57 @@ export default function App() {
             }}
           />
         )}
+        {pendingInviteMatch && (
+          <InviteJoinPanel
+            match={pendingInviteMatch}
+            busy={inviteBusy}
+            onJoin={handleJoinInvite}
+            onClose={() => {
+              localStorage.removeItem(PENDING_INVITE_KEY);
+              setPendingInviteMatch(null);
+            }}
+          />
+        )}
       </main>
+    </div>
+  );
+}
+
+function InviteJoinPanel({
+  match,
+  busy,
+  onJoin,
+  onClose,
+}: {
+  match: Match;
+  busy: boolean;
+  onJoin: (team: MatchTeam) => Promise<void>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-[1300] bg-ink/20 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-[360px] bg-white border border-line rounded-[28px] shadow-[0_20px_60px_-20px_rgba(31,44,65,0.35)] p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[12px] font-bold uppercase tracking-wider text-muted">
+              Приглашение
+            </div>
+            <h2 className="mt-1 text-[20px] font-bold text-ink">{match.title}</h2>
+            <p className="mt-1 text-[13px] text-muted">
+              Выбери команду, за которую хочешь присоединиться.
+            </p>
+          </div>
+          <IconButton onClick={onClose} aria-label="Закрыть">×</IconButton>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button disabled={busy} onClick={() => onJoin('TeamA')}>
+            Команда A
+          </Button>
+          <Button disabled={busy} variant="secondary" onClick={() => onJoin('TeamB')}>
+            Команда B
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

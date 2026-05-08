@@ -12,6 +12,9 @@ public class Match
     public int DurationMinutes { get; set; }
     public int MaxPlayers { get; set; }
     public MatchStatus Status { get; set; } = MatchStatus.Scheduled;
+    public int? TeamAScore { get; set; }
+    public int? TeamBScore { get; set; }
+    public DateTime? ResultSubmittedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 
@@ -27,4 +30,10 @@ public enum MatchStatus
     InProgress = 2,
     Completed = 3,
     Cancelled = 4,
+}
+
+public enum MatchTeam
+{
+    TeamA = 0,
+    TeamB = 1,
 }

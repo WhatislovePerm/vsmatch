@@ -11,6 +11,7 @@ export interface Court {
 }
 
 export type MatchStatus = 'Scheduled' | 'Ready' | 'InProgress' | 'Completed' | 'Cancelled';
+export type MatchTeam = 'TeamA' | 'TeamB';
 
 export interface Match {
   id: string;
@@ -27,6 +28,9 @@ export interface Match {
   currentPlayers: number;
   players: MatchPlayer[];
   status: MatchStatus;
+  teamAScore: number | null;
+  teamBScore: number | null;
+  resultSubmittedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -34,6 +38,11 @@ export interface Match {
 export interface MatchPlayer {
   userId: string;
   displayName: string;
+  team: MatchTeam;
+  goals: number;
+  assists: number;
+  rating: number;
+  ratingDelta: number;
   joinedAt: string;
 }
 
@@ -48,4 +57,14 @@ export interface CreateMatchRequest {
 
 export interface UpdateMatchRequest extends CreateMatchRequest {
   status: MatchStatus;
+}
+
+export interface SubmitMatchResultRequest {
+  teamAScore: number;
+  teamBScore: number;
+  players: Array<{
+    userId: string;
+    goals: number;
+    assists: number;
+  }>;
 }

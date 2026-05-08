@@ -4,12 +4,14 @@ import {
   Copy,
   MapPin,
   Play,
+  Shuffle,
   Star,
+  Trophy,
   Users,
   X,
   XCircle,
 } from 'lucide-react';
-import type { Court, Match } from '../types';
+import type { Court, Match, MatchPlayer, MatchTeam, SubmitMatchResultRequest } from '../types';
 import { Badge, Button, IconButton, Input } from './ui';
 
 interface Props {
@@ -24,9 +26,11 @@ interface Props {
     durationMinutes: number;
     maxPlayers: number;
   }) => Promise<void>;
+  onJoinMatch: (match: Match, team: MatchTeam) => Promise<void>;
+  onShuffleTeams: (match: Match) => Promise<void>;
   onCancelMatch: (match: Match) => Promise<void>;
   onStartMatch: (match: Match) => Promise<void>;
-  onCompleteMatch: (match: Match) => Promise<void>;
+  onSubmitResult: (match: Match, result: SubmitMatchResultRequest) => Promise<void>;
 }
 
 export function CourtCard({
@@ -35,14 +39,17 @@ export function CourtCard({
   currentUserId,
   onClose,
   onCreateMatch,
+  onJoinMatch,
+  onShuffleTeams,
   onCancelMatch,
   onStartMatch,
-  onCompleteMatch,
+  onSubmitResult,
 }: Props) {
   const [title, setTitle] = useState('Матч');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [busy, setBusy] = useState(false);
   const [copiedMatchId, setCopiedMatchId] = useState<string | null>(null);
+  const [resultMatchId, setResultMatchId] = useState<string | null>(null);
 
   const activeMatches = matches.filter(
     (m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress',
@@ -154,8 +161,17 @@ export function CourtCard({
                   }}
                   onCancel={() => onCancelMatch(match)}
                   onStart={() => onStartMatch(match)}
-                  onComplete={() => onCompleteMatch(match)}
+                  onJoin={(team) => onJoinMatch(match, team)}
+                  onShuffle={() => onShuffleTeams(match)}
+                  onOpenResult={() => setResultMatchId(match.id)}
+                  onCloseResult={() => setResultMatchId(null)}
+                  onSubmitResult={async (result) => {
+                    await onSubmitResult(match, result);
+                    setResultMatchId(null);
+                  }}
                   canManage={match.createdByUserId === currentUserId}
+                  currentUserId={currentUserId}
+                  showResultForm={resultMatchId === match.id}
                 />
               ))}
               <p className="text-[12px] text-muted mt-1">
@@ -206,17 +222,39 @@ function MatchRow({
   onCopy,
   onCancel,
   onStart,
-  onComplete,
+  onJoin,
+  onShuffle,
+  onOpenResult,
+  onCloseResult,
+  onSubmitResult,
   canManage,
+  currentUserId,
+  showResultForm,
 }: {
   match: Match;
   copied: boolean;
   onCopy: () => void;
   onCancel: () => void;
   onStart: () => void;
-  onComplete: () => void;
+  onJoin: (team: MatchTeam) => void;
+  onShuffle: () => void;
+  onOpenResult: () => void;
+  onCloseResult: () => void;
+  onSubmitResult: (result: SubmitMatchResultRequest) => Promise<void>;
   canManage: boolean;
+  currentUserId: string | null;
+  showResultForm: boolean;
 }) {
+  const teamA = match.players.filter((p) => p.team === 'TeamA');
+  const teamB = match.players.filter((p) => p.team === 'TeamB');
+  const currentUserIsPlayer = match.players.some((p) => p.userId === currentUserId);
+  const canJoin = !currentUserIsPlayer
+    && match.currentPlayers < match.maxPlayers
+    && (match.status === 'Scheduled' || match.status === 'Ready');
+  const canShuffle = canManage && match.currentPlayers >= 2 && match.status !== 'InProgress';
+  const canStart = canManage && match.currentPlayers >= 2 && match.status !== 'InProgress';
+  const canComplete = canManage && match.status === 'InProgress';
+
   return (
     <article className="bg-subtle border border-line rounded-[20px] p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
@@ -237,20 +275,20 @@ function MatchRow({
       </div>
 
       {match.players.length > 0 && (
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-2 mb-1.5">
-            Игроки
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {match.players.map((p) => (
-              <span
-                key={p.userId}
-                className="text-[12px] bg-white border border-line rounded-full px-2.5 py-0.5 text-ink-2"
-              >
-                {p.displayName}
-              </span>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 gap-2">
+          <TeamPlayers title="Команда A" players={teamA} />
+          <TeamPlayers title="Команда B" players={teamB} />
+        </div>
+      )}
+
+      {canJoin && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" size="sm" onClick={() => onJoin('TeamA')}>
+            Войти в A
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => onJoin('TeamB')}>
+            Войти в B
+          </Button>
         </div>
       )}
 
@@ -263,6 +301,16 @@ function MatchRow({
         >
           {copied ? 'Скопировано' : 'Копировать ссылку'}
         </Button>
+        {canShuffle && (
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={<Shuffle size={14} />}
+            onClick={onShuffle}
+          >
+            Тасовать
+          </Button>
+        )}
         {canManage && match.currentPlayers < 2 ? (
           <Button
             variant="danger"
@@ -272,7 +320,7 @@ function MatchRow({
           >
             Отменить
           </Button>
-        ) : canManage && match.status !== 'InProgress' ? (
+        ) : canStart ? (
           <Button
             variant="primary"
             size="sm"
@@ -281,17 +329,149 @@ function MatchRow({
           >
             Начать
           </Button>
-        ) : canManage ? (
+        ) : canComplete ? (
           <Button
             variant="secondary"
             size="sm"
-            iconLeft={<Check size={14} />}
-            onClick={onComplete}
+            iconLeft={<Trophy size={14} />}
+            onClick={onOpenResult}
           >
             Завершить
           </Button>
         ) : null}
       </div>
+
+      {showResultForm && (
+        <ResultForm
+          match={match}
+          onSubmit={onSubmitResult}
+          onCancel={onCloseResult}
+        />
+      )}
     </article>
+  );
+}
+
+function TeamPlayers({ title, players }: { title: string; players: MatchPlayer[] }) {
+  return (
+    <div className="bg-white border border-line rounded-[16px] p-2.5 min-h-[74px]">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-2 mb-1.5">
+        {title}
+      </div>
+      {players.length === 0 ? (
+        <div className="text-[12px] text-muted">Пусто</div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {players.map((p) => (
+            <div key={p.userId} className="text-[12px] text-ink-2 truncate">
+              {p.displayName}
+              <span className="ml-1 text-muted tabular-nums">{Math.round(p.rating)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultForm({
+  match,
+  onSubmit,
+  onCancel,
+}: {
+  match: Match;
+  onSubmit: (result: SubmitMatchResultRequest) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [teamAScore, setTeamAScore] = useState(0);
+  const [teamBScore, setTeamBScore] = useState(0);
+  const [stats, setStats] = useState<Record<string, { goals: number; assists: number }>>(
+    () => Object.fromEntries(match.players.map((p) => [p.userId, { goals: 0, assists: 0 }])),
+  );
+  const [busy, setBusy] = useState(false);
+
+  const setPlayerStat = (userId: string, key: 'goals' | 'assists', value: number) => {
+    setStats((prev) => ({
+      ...prev,
+      [userId]: {
+        ...prev[userId],
+        [key]: Math.max(0, value),
+      },
+    }));
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await onSubmit({
+        teamAScore,
+        teamBScore,
+        players: match.players.map((p) => ({
+          userId: p.userId,
+          goals: stats[p.userId]?.goals ?? 0,
+          assists: stats[p.userId]?.assists ?? 0,
+        })),
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-2 pt-3 border-t border-line flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          label="Счёт A"
+          type="number"
+          min={0}
+          value={teamAScore}
+          onChange={(e) => setTeamAScore(Math.max(0, Number(e.target.value)))}
+        />
+        <Input
+          label="Счёт B"
+          type="number"
+          min={0}
+          value={teamBScore}
+          onChange={(e) => setTeamBScore(Math.max(0, Number(e.target.value)))}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {match.players.map((p) => (
+          <div key={p.userId} className="grid grid-cols-[1fr_72px_72px] gap-2 items-end">
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                {p.team === 'TeamA' ? 'A' : 'B'}
+              </div>
+              <div className="text-[13px] font-semibold text-ink truncate">{p.displayName}</div>
+            </div>
+            <Input
+              label="Голы"
+              type="number"
+              min={0}
+              value={stats[p.userId]?.goals ?? 0}
+              onChange={(e) => setPlayerStat(p.userId, 'goals', Number(e.target.value))}
+            />
+            <Input
+              label="Пасы"
+              type="number"
+              min={0}
+              value={stats[p.userId]?.assists ?? 0}
+              onChange={(e) => setPlayerStat(p.userId, 'assists', Number(e.target.value))}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          Назад
+        </Button>
+        <Button type="submit" size="sm" disabled={busy} iconLeft={<Check size={14} />}>
+          Сохранить
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -66,6 +66,7 @@ public class MatchService : IMatchService
         {
             MatchId = match.Id,
             UserId = userId,
+            Team = MatchTeam.TeamA,
             JoinedAt = DateTime.UtcNow,
         });
 
@@ -130,7 +131,7 @@ public class MatchService : IMatchService
         return true;
     }
 
-    public async Task<MatchDto?> JoinAsync(Guid id, Guid userId, CancellationToken ct = default)
+    public async Task<MatchDto?> JoinAsync(Guid id, Guid userId, MatchTeam team, CancellationToken ct = default)
     {
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
@@ -145,6 +146,7 @@ public class MatchService : IMatchService
         {
             MatchId = match.Id,
             UserId = userId,
+            Team = team,
             JoinedAt = DateTime.UtcNow,
         });
         if (match.Status == MatchStatus.Scheduled && match.Players.Count >= 2)
@@ -152,6 +154,77 @@ public class MatchService : IMatchService
         match.UpdatedAt = DateTime.UtcNow;
 
         _matches.Update(match);
+        await _matches.SaveChangesAsync(ct);
+        await _events.PublishChangedAsync(ct);
+
+        return await GetByIdAsync(id, ct);
+    }
+
+    public async Task<MatchDto?> ShuffleTeamsAsync(Guid id, Guid userId, CancellationToken ct = default)
+    {
+        var match = await _matches.GetByIdAsync(id, ct);
+        if (match is null) return null;
+        EnsureCreator(match, userId);
+        if (match.Status is MatchStatus.Completed or MatchStatus.Cancelled)
+            throw new InvalidOperationException("Final match teams cannot be changed.");
+
+        var players = match.Players
+            .OrderBy(_ => Random.Shared.Next())
+            .ToList();
+
+        for (var i = 0; i < players.Count; i++)
+            players[i].Team = i % 2 == 0 ? MatchTeam.TeamA : MatchTeam.TeamB;
+
+        match.UpdatedAt = DateTime.UtcNow;
+        _matches.Update(match);
+        await _matches.SaveChangesAsync(ct);
+        await _events.PublishChangedAsync(ct);
+
+        return await GetByIdAsync(id, ct);
+    }
+
+    public async Task<MatchDto?> SubmitResultAsync(Guid id, SubmitMatchResultRequest req, Guid userId, CancellationToken ct = default)
+    {
+        var match = await _matches.GetByIdAsync(id, ct);
+        if (match is null) return null;
+        EnsureCreator(match, userId);
+        if (match.Status != MatchStatus.InProgress)
+            throw new InvalidOperationException("Only an active match can be completed with result.");
+        if (req.TeamAScore < 0 || req.TeamBScore < 0)
+            throw new InvalidOperationException("Score cannot be negative.");
+
+        if (req.Players.Select(p => p.UserId).Distinct().Count() != req.Players.Count)
+            throw new InvalidOperationException("Duplicate player stats are not allowed.");
+
+        var statsByUserId = req.Players.ToDictionary(p => p.UserId);
+        if (statsByUserId.Count != match.Players.Count || match.Players.Any(p => !statsByUserId.ContainsKey(p.UserId)))
+            throw new InvalidOperationException("Stats must be provided for every match player.");
+        if (req.Players.Any(p => p.Goals < 0 || p.Assists < 0))
+            throw new InvalidOperationException("Goals and assists cannot be negative.");
+
+        foreach (var player in match.Players)
+        {
+            if (player.User is null)
+                throw new InvalidOperationException("Match player user is missing.");
+
+            var stats = statsByUserId[player.UserId];
+            var delta = CalculateRatingDelta(player.Team, req.TeamAScore, req.TeamBScore, stats.Goals, stats.Assists);
+
+            player.Goals = stats.Goals;
+            player.Assists = stats.Assists;
+            player.RatingDelta = delta;
+            player.User.Rating = Math.Max(0, player.User.Rating + delta);
+        }
+
+        match.TeamAScore = req.TeamAScore;
+        match.TeamBScore = req.TeamBScore;
+        match.ResultSubmittedAt = DateTime.UtcNow;
+        match.Status = MatchStatus.Completed;
+        match.UpdatedAt = DateTime.UtcNow;
+
+        _matches.Update(match);
+        await _matches.SaveChangesAsync(ct);
+        await RecalculateCourtAvailabilityAsync(match.CourtId, exceptMatchId: null, ct);
         await _matches.SaveChangesAsync(ct);
         await _events.PublishChangedAsync(ct);
 
@@ -198,6 +271,23 @@ public class MatchService : IMatchService
             throw new InvalidOperationException("Max players must be between 2 and 50.");
     }
 
+    private static void EnsureCreator(Match match, Guid userId)
+    {
+        if (match.CreatedByUserId != userId)
+            throw new InvalidOperationException("Only match creator can do this.");
+    }
+
+    private static double CalculateRatingDelta(MatchTeam team, int teamAScore, int teamBScore, int goals, int assists)
+    {
+        var teamScore = team == MatchTeam.TeamA ? teamAScore : teamBScore;
+        var opponentScore = team == MatchTeam.TeamA ? teamBScore : teamAScore;
+        var resultDelta = teamScore == opponentScore
+            ? 5
+            : teamScore > opponentScore ? 25 : -15;
+
+        return resultDelta + goals * 3 + assists * 2;
+    }
+
     private async Task<string> GenerateInviteCodeAsync(CancellationToken ct)
     {
         for (var i = 0; i < 5; i++)
@@ -225,7 +315,7 @@ public class MatchService : IMatchService
         {
             MatchStatus.Scheduled => next is MatchStatus.Ready or MatchStatus.Cancelled,
             MatchStatus.Ready => next is MatchStatus.InProgress or MatchStatus.Cancelled,
-            MatchStatus.InProgress => next is MatchStatus.Completed or MatchStatus.Cancelled,
+            MatchStatus.InProgress => next is MatchStatus.Cancelled,
             _ => false,
         };
 
@@ -254,9 +344,17 @@ public class MatchService : IMatchService
                 .Select(p => new MatchPlayerDto(
                     p.UserId,
                     p.User?.DisplayName ?? p.UserId.ToString(),
+                    p.Team,
+                    p.Goals,
+                    p.Assists,
+                    p.User?.Rating ?? 1000,
+                    p.RatingDelta,
                     p.JoinedAt))
                 .ToList(),
             m.Status,
+            m.TeamAScore,
+            m.TeamBScore,
+            m.ResultSubmittedAt,
             m.CreatedAt,
             m.UpdatedAt);
 }

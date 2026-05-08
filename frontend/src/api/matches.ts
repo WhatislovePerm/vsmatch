@@ -1,4 +1,4 @@
-import type { CreateMatchRequest, Match, UpdateMatchRequest } from '../types';
+import type { CreateMatchRequest, Match, MatchTeam, SubmitMatchResultRequest, UpdateMatchRequest } from '../types';
 import { authFetch } from './client';
 
 export async function fetchMatches(courtId?: string): Promise<Match[]> {
@@ -39,15 +39,39 @@ export async function deleteMatch(id: string): Promise<void> {
   if (!res.ok) throw new Error(`Failed to delete match: ${res.status}`);
 }
 
-export async function joinMatch(id: string): Promise<Match> {
-  const res = await authFetch(`/api/matches/${id}/players/me`, { method: 'POST' });
+export async function joinMatch(id: string, team: MatchTeam): Promise<Match> {
+  const res = await authFetch(`/api/matches/${id}/players/me`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ team }),
+  });
   if (!res.ok) throw new Error(`Failed to join match: ${res.status}`);
   return res.json();
 }
 
-export async function joinMatchByInvite(inviteCode: string): Promise<Match> {
-  const res = await authFetch(`/api/matches/invite/${encodeURIComponent(inviteCode)}/players/me`, { method: 'POST' });
+export async function joinMatchByInvite(inviteCode: string, team: MatchTeam): Promise<Match> {
+  const res = await authFetch(`/api/matches/invite/${encodeURIComponent(inviteCode)}/players/me`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ team }),
+  });
   if (!res.ok) throw new Error(`Failed to join match by invite: ${res.status}`);
+  return res.json();
+}
+
+export async function shuffleTeams(id: string): Promise<Match> {
+  const res = await authFetch(`/api/matches/${id}/teams/shuffle`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to shuffle teams: ${res.status}`);
+  return res.json();
+}
+
+export async function submitMatchResult(id: string, req: SubmitMatchResultRequest): Promise<Match> {
+  const res = await authFetch(`/api/matches/${id}/result`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error(`Failed to submit match result: ${res.status}`);
   return res.json();
 }
 

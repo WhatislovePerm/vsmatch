@@ -17,6 +17,9 @@ public record MatchDto(
     int CurrentPlayers,
     IReadOnlyList<MatchPlayerDto> Players,
     MatchStatus Status,
+    int? TeamAScore,
+    int? TeamBScore,
+    DateTime? ResultSubmittedAt,
     DateTime CreatedAt,
     DateTime? UpdatedAt
 );
@@ -24,5 +27,10 @@ public record MatchDto(
 public record MatchPlayerDto(
     Guid UserId,
     string DisplayName,
+    MatchTeam Team,
+    int Goals,
+    int Assists,
+    double Rating,
+    double RatingDelta,
     DateTime JoinedAt
 );

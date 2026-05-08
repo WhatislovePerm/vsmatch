@@ -32,6 +32,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.VkUserId).HasMaxLength(64).IsRequired();
             e.Property(x => x.DisplayName).HasMaxLength(256).IsRequired();
             e.Property(x => x.Email).HasMaxLength(256);
+            e.Property(x => x.Rating).HasDefaultValue(1000);
         });
 
         b.Entity<Match>(e =>
@@ -60,6 +61,7 @@ public class AppDbContext : DbContext
         {
             e.HasKey(x => new { x.MatchId, x.UserId });
             e.HasIndex(x => x.UserId);
+            e.Property(x => x.Team).HasConversion<string>().HasMaxLength(16).HasDefaultValue(MatchTeam.TeamA);
 
             e.HasOne(x => x.Match)
                 .WithMany(x => x.Players)

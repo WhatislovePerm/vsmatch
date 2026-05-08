@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VSMatch.Data.Entities;
 using VSMatch.Dtos.Matches;
 using VSMatch.Services.Matches;
 
@@ -73,11 +74,11 @@ public class MatchesController : ControllerBase
         => await _matches.DeleteAsync(id, ct) ? NoContent() : NotFound();
 
     [HttpPost("{id:guid}/players/me")]
-    public async Task<ActionResult<MatchDto>> Join(Guid id, CancellationToken ct)
+    public async Task<ActionResult<MatchDto>> Join(Guid id, JoinMatchRequest? req, CancellationToken ct)
     {
         try
         {
-            var match = await _matches.JoinAsync(id, GetUserId(), ct);
+            var match = await _matches.JoinAsync(id, GetUserId(), req?.Team ?? MatchTeam.TeamA, ct);
             return match is null ? NotFound() : Ok(match);
         }
         catch (InvalidOperationException ex)
@@ -87,15 +88,43 @@ public class MatchesController : ControllerBase
     }
 
     [HttpPost("invite/{inviteCode}/players/me")]
-    public async Task<ActionResult<MatchDto>> JoinByInvite(string inviteCode, CancellationToken ct)
+    public async Task<ActionResult<MatchDto>> JoinByInvite(string inviteCode, JoinMatchRequest? req, CancellationToken ct)
     {
         try
         {
             var match = await _matches.GetByInviteCodeAsync(inviteCode, ct);
             if (match is null) return NotFound();
 
-            var joined = await _matches.JoinAsync(match.Id, GetUserId(), ct);
+            var joined = await _matches.JoinAsync(match.Id, GetUserId(), req?.Team ?? MatchTeam.TeamA, ct);
             return joined is null ? NotFound() : Ok(joined);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/teams/shuffle")]
+    public async Task<ActionResult<MatchDto>> ShuffleTeams(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var match = await _matches.ShuffleTeamsAsync(id, GetUserId(), ct);
+            return match is null ? NotFound() : Ok(match);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/result")]
+    public async Task<ActionResult<MatchDto>> SubmitResult(Guid id, SubmitMatchResultRequest req, CancellationToken ct)
+    {
+        try
+        {
+            var match = await _matches.SubmitResultAsync(id, req, GetUserId(), ct);
+            return match is null ? NotFound() : Ok(match);
         }
         catch (InvalidOperationException ex)
         {

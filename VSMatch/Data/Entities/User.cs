@@ -6,6 +6,7 @@ public class User
     public string VkUserId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string? Email { get; set; }
+    public double Rating { get; set; } = 1000;
     public DateTime CreatedAt { get; set; }
 
     public ICollection<MatchPlayer> MatchPlayers { get; set; } = new List<MatchPlayer>();
