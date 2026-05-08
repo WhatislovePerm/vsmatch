@@ -62,6 +62,8 @@ public class MatchService : IMatchService
             InviteCode = await GenerateInviteCodeAsync(ct),
             Title = req.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
+            TeamAName = NormalizeTeamName(req.TeamAName, "Команда A"),
+            TeamBName = NormalizeTeamName(req.TeamBName, "Команда B"),
             StartsAtUtc = DateTime.SpecifyKind(req.StartsAtUtc, DateTimeKind.Utc),
             DurationMinutes = req.DurationMinutes,
             MaxPlayers = req.MaxPlayers,
@@ -104,6 +106,8 @@ public class MatchService : IMatchService
         match.CourtId = req.CourtId;
         match.Title = req.Title.Trim();
         match.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
+        match.TeamAName = NormalizeTeamName(req.TeamAName, "Команда A");
+        match.TeamBName = NormalizeTeamName(req.TeamBName, "Команда B");
         match.StartsAtUtc = DateTime.SpecifyKind(req.StartsAtUtc, DateTimeKind.Utc);
         match.DurationMinutes = req.DurationMinutes;
         match.MaxPlayers = req.MaxPlayers;
@@ -277,6 +281,17 @@ public class MatchService : IMatchService
             throw new InvalidOperationException("Max players must be between 2 and 50.");
     }
 
+    private static string NormalizeTeamName(string? value, string fallback)
+    {
+        var name = value?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return fallback;
+        if (name.Length > 64)
+            throw new InvalidOperationException("Team name must be 64 characters or less.");
+
+        return name;
+    }
+
     private static void EnsureCreator(Match match, Guid userId)
     {
         if (match.CreatedByUserId != userId)
@@ -341,6 +356,8 @@ public class MatchService : IMatchService
             $"/matches/join/{m.InviteCode}",
             m.Title,
             m.Description,
+            m.TeamAName,
+            m.TeamBName,
             m.StartsAtUtc,
             m.DurationMinutes,
             m.MaxPlayers,

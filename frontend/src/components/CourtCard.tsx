@@ -22,6 +22,8 @@ interface Props {
   onCreateMatch: (input: {
     title: string;
     description: string | null;
+    teamAName: string | null;
+    teamBName: string | null;
     startsAtUtc: string;
     durationMinutes: number;
     maxPlayers: number;
@@ -46,6 +48,8 @@ export function CourtCard({
   onSubmitResult,
 }: Props) {
   const [title, setTitle] = useState('Матч');
+  const [teamAName, setTeamAName] = useState('');
+  const [teamBName, setTeamBName] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [busy, setBusy] = useState(false);
   const [copiedMatchId, setCopiedMatchId] = useState<string | null>(null);
@@ -63,11 +67,15 @@ export function CourtCard({
       await onCreateMatch({
         title,
         description: null,
+        teamAName: teamAName || null,
+        teamBName: teamBName || null,
         startsAtUtc: new Date().toISOString(),
         durationMinutes: 90,
         maxPlayers,
       });
       setTitle('Матч');
+      setTeamAName('');
+      setTeamBName('');
     } finally {
       setBusy(false);
     }
@@ -198,6 +206,22 @@ export function CourtCard({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Например: Вечерний матч"
             />
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
+              <Input
+                label="Команда 1"
+                value={teamAName}
+                onChange={(e) => setTeamAName(e.target.value)}
+                placeholder="Мадрид"
+                maxLength={64}
+              />
+              <Input
+                label="Команда 2"
+                value={teamBName}
+                onChange={(e) => setTeamBName(e.target.value)}
+                placeholder="Барса"
+                maxLength={64}
+              />
+            </div>
             <Input
               label="Игроков"
               type="number"
@@ -278,18 +302,18 @@ function MatchRow({
 
       {match.players.length > 0 && (
         <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-          <TeamPlayers title="Команда A" players={teamA} />
-          <TeamPlayers title="Команда B" players={teamB} />
+          <TeamPlayers title={match.teamAName} players={teamA} />
+          <TeamPlayers title={match.teamBName} players={teamB} />
         </div>
       )}
 
       {canJoin && (
         <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
           <Button variant="secondary" size="sm" onClick={() => onJoin('TeamA')}>
-            Войти в A
+            Войти в {match.teamAName}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => onJoin('TeamB')}>
-            Войти в B
+            Войти в {match.teamBName}
           </Button>
         </div>
       )}
@@ -459,7 +483,7 @@ function ResultForm({
           <div key={p.userId} className="grid grid-cols-2 min-[390px]:grid-cols-[minmax(0,1fr)_72px_72px] gap-2 items-end">
             <div className="min-w-0 col-span-2 min-[390px]:col-span-1">
               <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                {p.team === 'TeamA' ? 'A' : 'B'}
+                {p.team === 'TeamA' ? match.teamAName : match.teamBName}
               </div>
               <div className="text-[13px] font-semibold text-ink truncate">{p.displayName}</div>
             </div>

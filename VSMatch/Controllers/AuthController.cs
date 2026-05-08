@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using VSMatch.Data.Repositories;
 using VSMatch.Dtos.Auth;
 using VSMatch.Options;
 using VSMatch.Services.Auth;
@@ -13,11 +14,13 @@ namespace VSMatch.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _auth;
+    private readonly IUserRepository _users;
     private readonly VkIdOptions _vkOpt;
 
-    public AuthController(IAuthService auth, IOptions<VkIdOptions> vkOpt)
+    public AuthController(IAuthService auth, IUserRepository users, IOptions<VkIdOptions> vkOpt)
     {
         _auth = auth;
+        _users = users;
         _vkOpt = vkOpt.Value;
     }
 
@@ -75,13 +78,21 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpGet("me")]
-    public ActionResult<object> Me() => Ok(new
+    public async Task<ActionResult<object>> Me(CancellationToken ct)
     {
-        userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-        name = User.Identity?.Name,
-        vkUserId = User.FindFirst("vk_user_id")?.Value,
-        email = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Email)?.Value,
-    });
+        var userId = GetUserId();
+        var user = await _users.GetByIdAsync(userId, ct);
+        if (user is null) return Unauthorized();
+
+        return Ok(new
+        {
+            userId = user.Id,
+            name = user.DisplayName,
+            vkUserId = user.VkUserId,
+            email = user.Email,
+            rating = user.Rating,
+        });
+    }
 
     [Authorize]
     [HttpPut("me")]

@@ -44,6 +44,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.InviteCode).HasMaxLength(32).IsRequired();
             e.Property(x => x.Title).HasMaxLength(256).IsRequired();
             e.Property(x => x.Description).HasMaxLength(1024);
+            e.Property(x => x.TeamAName).HasMaxLength(64).HasDefaultValue("Команда A");
+            e.Property(x => x.TeamBName).HasMaxLength(64).HasDefaultValue("Команда B");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
 
             e.HasOne(x => x.Court)

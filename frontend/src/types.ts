@@ -22,6 +22,8 @@ export interface Match {
   inviteUrl: string;
   title: string;
   description: string | null;
+  teamAName: string;
+  teamBName: string;
   startsAtUtc: string;
   durationMinutes: number;
   maxPlayers: number;
@@ -50,6 +52,8 @@ export interface CreateMatchRequest {
   courtId: string;
   title: string;
   description: string | null;
+  teamAName: string | null;
+  teamBName: string | null;
   startsAtUtc: string;
   durationMinutes: number;
   maxPlayers: number;

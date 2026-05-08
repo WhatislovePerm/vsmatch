@@ -51,28 +51,37 @@ export default function App() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [appTab, setAppTab] = useState<AppTab>('map');
 
+  const loadHistorySafely = useCallback(async () => {
+    try {
+      return await fetchMyMatchHistory();
+    } catch {
+      return [];
+    }
+  }, []);
+
   const reloadCourtsAndMatches = useCallback(async () => {
-    const [courtsRes, matchesRes, historyRes] = await Promise.all([
+    const [courtsRes, matchesRes] = await Promise.all([
       fetchCourts(),
       fetchMatches(),
-      fetchMyMatchHistory(),
     ]);
     setCourts(courtsRes);
     setMatches(matchesRes);
+    const historyRes = await loadHistorySafely();
     setMyMatchHistory(historyRes);
-  }, []);
+  }, [loadHistorySafely]);
 
   const loadUserAndCourts = useCallback(async () => {
     try {
-      const [meRes, courtsRes, matchesRes, historyRes] = await Promise.all([
-        getMe(),
+      const meRes = await getMe();
+      setMe(meRes);
+
+      const [courtsRes, matchesRes] = await Promise.all([
         fetchCourts(),
         fetchMatches(),
-        fetchMyMatchHistory(),
       ]);
-      setMe(meRes);
       setCourts(courtsRes);
       setMatches(matchesRes);
+      const historyRes = await loadHistorySafely();
       setMyMatchHistory(historyRes);
       const pendingInvite = localStorage.getItem(PENDING_INVITE_KEY);
       if (pendingInvite) {
@@ -85,10 +94,10 @@ export default function App() {
       setView('app');
     } catch (e) {
       clearToken();
-      setLoginError(String(e));
+      setLoginError(null);
       setView('login');
     }
-  }, []);
+  }, [loadHistorySafely]);
 
   useEffect(() => {
     if (!selected) return;
@@ -194,6 +203,11 @@ export default function App() {
               <span className="hidden min-[420px]:inline">История</span>
             </button>
           </nav>
+          {me && (
+            <Badge tone="info" className="hidden min-[520px]:inline-flex">
+              {Math.round(me.rating)} рейтинг
+            </Badge>
+          )}
           <Badge tone="neutral" className="hidden sm:inline-flex">
             {courts.length} коробок
           </Badge>
@@ -268,6 +282,8 @@ export default function App() {
                 courtId: match.courtId,
                 title: match.title,
                 description: match.description,
+                teamAName: match.teamAName,
+                teamBName: match.teamBName,
                 startsAtUtc: match.startsAtUtc,
                 durationMinutes: match.durationMinutes,
                 maxPlayers: match.maxPlayers,
@@ -280,6 +296,8 @@ export default function App() {
                 courtId: match.courtId,
                 title: match.title,
                 description: match.description,
+                teamAName: match.teamAName,
+                teamBName: match.teamBName,
                 startsAtUtc: match.startsAtUtc,
                 durationMinutes: match.durationMinutes,
                 maxPlayers: match.maxPlayers,
@@ -403,11 +421,11 @@ function PlayerHistoryCard({
 
       {completed && (
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[16px] bg-subtle border border-line p-3">
-          <div className="text-[12px] font-semibold text-muted text-right">Команда A</div>
+          <div className="text-[12px] font-semibold text-muted text-right truncate">{match.teamAName}</div>
           <div className="text-[22px] font-bold text-ink tabular-nums">
             {match.teamAScore ?? 0}:{match.teamBScore ?? 0}
           </div>
-          <div className="text-[12px] font-semibold text-muted">Команда B</div>
+          <div className="text-[12px] font-semibold text-muted truncate">{match.teamBName}</div>
         </div>
       )}
 
@@ -424,8 +442,8 @@ function PlayerHistoryCard({
       )}
 
       <div className="mt-4 grid grid-cols-1 min-[440px]:grid-cols-2 gap-2">
-        <HistoryTeam title="Команда A" players={teamA} currentUserId={currentUserId} />
-        <HistoryTeam title="Команда B" players={teamB} currentUserId={currentUserId} />
+        <HistoryTeam title={match.teamAName} players={teamA} currentUserId={currentUserId} />
+        <HistoryTeam title={match.teamBName} players={teamB} currentUserId={currentUserId} />
       </div>
     </article>
   );
@@ -521,10 +539,10 @@ function InviteJoinPanel({
         </div>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Button disabled={busy} onClick={() => onJoin('TeamA')}>
-            Команда A
+            {match.teamAName}
           </Button>
           <Button disabled={busy} variant="secondary" onClick={() => onJoin('TeamB')}>
-            Команда B
+            {match.teamBName}
           </Button>
         </div>
       </div>

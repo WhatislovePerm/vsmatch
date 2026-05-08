@@ -8,6 +8,8 @@ public class Match
     public string InviteCode { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string TeamAName { get; set; } = "Команда A";
+    public string TeamBName { get; set; } = "Команда B";
     public DateTime StartsAtUtc { get; set; }
     public int DurationMinutes { get; set; }
     public int MaxPlayers { get; set; }

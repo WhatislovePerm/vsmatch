@@ -11,6 +11,8 @@ public record MatchDto(
     string InviteUrl,
     string Title,
     string? Description,
+    string TeamAName,
+    string TeamBName,
     DateTime StartsAtUtc,
     int DurationMinutes,
     int MaxPlayers,

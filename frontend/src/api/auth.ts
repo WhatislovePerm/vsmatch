@@ -6,6 +6,7 @@ export interface Me {
   name: string;
   vkUserId: string;
   email: string | null;
+  rating: number;
 }
 
 interface AuthResponse {
