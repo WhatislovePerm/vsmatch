@@ -137,37 +137,49 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-page">
-      <header className="flex items-center justify-between px-5 sm:px-7 py-3.5 bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[18px]">
+      <header className="flex items-center justify-between gap-3 px-3 sm:px-7 py-2.5 sm:py-3.5 bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[18px] shrink-0">
             ⚽
           </div>
-          <div className="flex flex-col leading-tight">
+          <div className="flex flex-col leading-tight min-w-0">
             <span className="font-bold text-[15px] tracking-tight text-ink">VSMatch</span>
             <span className="text-[11px] text-muted hidden sm:block">Москва · САО</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-3 min-w-0">
           <Badge tone="neutral" className="hidden sm:inline-flex">
             {courts.length} коробок
           </Badge>
-          <Badge tone={freeCount > 0 ? 'success' : 'neutral'}>
+          <Badge tone={freeCount > 0 ? 'success' : 'neutral'} className="hidden min-[380px]:inline-flex">
             {freeCount} свободно
           </Badge>
           {me && (
-            <button
-              type="button"
-              onClick={() => setProfileOpen(true)}
-              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors"
-            >
-              <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold">
-                {(me.name?.[0] ?? '?').toUpperCase()}
-              </div>
-              <span className="text-[13px] font-medium text-ink-2 max-w-[140px] truncate">
-                {me.name}
-              </span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors min-w-0"
+              >
+                <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
+                  {(me.name?.[0] ?? '?').toUpperCase()}
+                </div>
+                <span className="text-[13px] font-medium text-ink-2 max-w-[140px] truncate">
+                  {me.name}
+                </span>
+              </button>
+              <IconButton
+                onClick={() => setProfileOpen(true)}
+                aria-label="Профиль"
+                variant="subtle"
+                className="md:hidden"
+              >
+                <span className="text-[12px] font-bold text-ink-2">
+                  {(me.name?.[0] ?? '?').toUpperCase()}
+                </span>
+              </IconButton>
+            </>
           )}
           <IconButton onClick={handleLogout} aria-label="Выйти" variant="subtle">
             <LogOut size={16} />

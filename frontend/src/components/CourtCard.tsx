@@ -1,7 +1,9 @@
 import { type FormEvent, useState } from 'react';
 import {
   Check,
+  CircleCheck,
   Copy,
+  History,
   MapPin,
   Play,
   Shuffle,
@@ -54,7 +56,11 @@ export function CourtCard({
   const activeMatches = matches.filter(
     (m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress',
   );
+  const historyMatches = matches
+    .filter((m) => m.status === 'Completed' || m.status === 'Cancelled')
+    .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime());
   const hasActiveMatch = activeMatches.length > 0;
+  const [tab, setTab] = useState<'current' | 'history'>('current');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -78,7 +84,7 @@ export function CourtCard({
       className={[
         'absolute z-[1000] anim-panel',
         // desktop: справа панель
-        'sm:top-5 sm:right-5 sm:w-[400px] sm:max-h-[calc(100vh-40px)]',
+        'sm:top-5 sm:right-5 sm:w-[min(430px,calc(100vw-40px))] sm:max-h-[calc(100vh-40px)]',
         // mobile: bottom sheet (от низа)
         'left-0 right-0 bottom-0 max-h-[80vh] sm:left-auto',
         'bg-white border border-line',
@@ -88,7 +94,7 @@ export function CourtCard({
       ].join(' ')}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-3">
+      <div className="flex items-start justify-between gap-3 px-4 sm:px-6 pt-5 sm:pt-6 pb-3">
         <div className="flex flex-col gap-2 min-w-0">
           <h2 className="text-[18px] font-bold tracking-tight text-ink leading-tight pr-2 break-words">
             {court.name}
@@ -103,7 +109,7 @@ export function CourtCard({
       </div>
 
       {/* Scrollable body */}
-      <div className="overflow-y-auto thin-scroll px-6 pb-6 flex-1">
+      <div className="overflow-y-auto thin-scroll px-4 sm:px-6 pb-6 flex-1">
         {/* Метаданные */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13.5px] mt-2">
           {court.sport && (
@@ -140,13 +146,37 @@ export function CourtCard({
 
         {/* Матчи */}
         <section className="mt-5 pt-5 border-t border-line">
-          <h3 className="text-[12px] font-bold uppercase tracking-wider text-muted mb-3">
-            Матчи
-          </h3>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-[12px] font-bold uppercase tracking-wider text-muted">
+              Матчи
+            </h3>
+            <div className="inline-grid grid-cols-2 rounded-[14px] bg-subtle border border-line p-0.5">
+              <button
+                type="button"
+                onClick={() => setTab('current')}
+                className={[
+                  'h-8 px-3 rounded-[11px] text-[12px] font-semibold transition-colors',
+                  tab === 'current' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink',
+                ].join(' ')}
+              >
+                Сейчас
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('history')}
+                className={[
+                  'h-8 px-3 rounded-[11px] text-[12px] font-semibold transition-colors',
+                  tab === 'history' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink',
+                ].join(' ')}
+              >
+                История
+              </button>
+            </div>
+          </div>
 
-          {activeMatches.length === 0 ? (
+          {tab === 'current' && activeMatches.length === 0 ? (
             <p className="text-[13px] text-muted">Матчей пока нет</p>
-          ) : (
+          ) : tab === 'current' ? (
             <div className="flex flex-col gap-2.5">
               {activeMatches.map((match) => (
                 <MatchRow
@@ -178,11 +208,19 @@ export function CourtCard({
                 Активный матч делает площадку занятой.
               </p>
             </div>
+          ) : historyMatches.length === 0 ? (
+            <p className="text-[13px] text-muted">Истории пока нет</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {historyMatches.map((match) => (
+                <HistoryMatchRow key={match.id} match={match} />
+              ))}
+            </div>
           )}
         </section>
 
         {/* Создать матч */}
-        {!hasActiveMatch && (
+        {!hasActiveMatch && tab === 'current' && (
           <form
             onSubmit={submit}
             className="mt-5 pt-5 border-t border-line flex flex-col gap-3"
@@ -275,14 +313,14 @@ function MatchRow({
       </div>
 
       {match.players.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
           <TeamPlayers title="Команда A" players={teamA} />
           <TeamPlayers title="Команда B" players={teamB} />
         </div>
       )}
 
       {canJoin && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
           <Button variant="secondary" size="sm" onClick={() => onJoin('TeamA')}>
             Войти в A
           </Button>
@@ -292,7 +330,7 @@ function MatchRow({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mt-1">
+      <div className="grid grid-cols-1 min-[360px]:flex min-[360px]:flex-wrap gap-2 mt-1">
         <Button
           variant="secondary"
           size="sm"
@@ -352,7 +390,15 @@ function MatchRow({
   );
 }
 
-function TeamPlayers({ title, players }: { title: string; players: MatchPlayer[] }) {
+function TeamPlayers({
+  title,
+  players,
+  showStats = false,
+}: {
+  title: string;
+  players: MatchPlayer[];
+  showStats?: boolean;
+}) {
   return (
     <div className="bg-white border border-line rounded-[16px] p-2.5 min-h-[74px]">
       <div className="text-[11px] font-bold uppercase tracking-wider text-muted-2 mb-1.5">
@@ -363,9 +409,16 @@ function TeamPlayers({ title, players }: { title: string; players: MatchPlayer[]
       ) : (
         <div className="flex flex-col gap-1">
           {players.map((p) => (
-            <div key={p.userId} className="text-[12px] text-ink-2 truncate">
-              {p.displayName}
-              <span className="ml-1 text-muted tabular-nums">{Math.round(p.rating)}</span>
+            <div key={p.userId} className="text-[12px] text-ink-2 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate">{p.displayName}</span>
+                <span className="shrink-0 text-muted tabular-nums">{Math.round(p.rating)}</span>
+              </div>
+              {showStats && (
+                <div className="mt-0.5 text-[11px] text-muted tabular-nums">
+                  {p.goals} г · {p.assists} п · {p.ratingDelta > 0 ? '+' : ''}{Math.round(p.ratingDelta)}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -420,7 +473,7 @@ function ResultForm({
 
   return (
     <form onSubmit={submit} className="mt-2 pt-3 border-t border-line flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
         <Input
           label="Счёт A"
           type="number"
@@ -439,8 +492,8 @@ function ResultForm({
 
       <div className="flex flex-col gap-2">
         {match.players.map((p) => (
-          <div key={p.userId} className="grid grid-cols-[1fr_72px_72px] gap-2 items-end">
-            <div className="min-w-0">
+          <div key={p.userId} className="grid grid-cols-2 min-[390px]:grid-cols-[minmax(0,1fr)_72px_72px] gap-2 items-end">
+            <div className="min-w-0 col-span-2 min-[390px]:col-span-1">
               <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
                 {p.team === 'TeamA' ? 'A' : 'B'}
               </div>
@@ -464,7 +517,7 @@ function ResultForm({
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
         <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
           Назад
         </Button>
@@ -473,5 +526,45 @@ function ResultForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function HistoryMatchRow({ match }: { match: Match }) {
+  const teamA = match.players.filter((p) => p.team === 'TeamA');
+  const teamB = match.players.filter((p) => p.team === 'TeamB');
+  const finishedAt = match.resultSubmittedAt ?? match.updatedAt ?? match.createdAt;
+  const completed = match.status === 'Completed';
+
+  return (
+    <article className="bg-subtle border border-line rounded-[20px] p-4 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-[14px] text-ink truncate">{match.title}</div>
+          <div className="mt-1 flex items-center gap-1.5 text-[12.5px] text-muted">
+            <History size={13} /> {new Date(finishedAt).toLocaleDateString('ru-RU')}
+          </div>
+        </div>
+        <Badge tone={completed ? 'success' : 'neutral'} iconLeft={completed ? <CircleCheck size={13} /> : undefined}>
+          {completed ? 'Завершён' : 'Отменён'}
+        </Badge>
+      </div>
+
+      {completed && (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[16px] bg-white border border-line p-3">
+          <div className="text-[12px] font-semibold text-muted text-right">Команда A</div>
+          <div className="text-[20px] font-bold text-ink tabular-nums">
+            {match.teamAScore ?? 0}:{match.teamBScore ?? 0}
+          </div>
+          <div className="text-[12px] font-semibold text-muted">Команда B</div>
+        </div>
+      )}
+
+      {match.players.length > 0 && (
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
+          <TeamPlayers title="Команда A" players={teamA} showStats />
+          <TeamPlayers title="Команда B" players={teamB} showStats />
+        </div>
+      )}
+    </article>
   );
 }
