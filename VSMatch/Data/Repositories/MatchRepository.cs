@@ -67,6 +67,11 @@ public class MatchRepository : BaseRepository<Match>, IMatchRepository
             (!exceptMatchId.HasValue || m.Id != exceptMatchId.Value) &&
             (m.Status == MatchStatus.Scheduled || m.Status == MatchStatus.Ready || m.Status == MatchStatus.InProgress), ct);
 
+    public Task<bool> HasActiveMatchForUserAsync(Guid userId, CancellationToken ct = default)
+        => Set.AnyAsync(m =>
+            (m.Status == MatchStatus.Scheduled || m.Status == MatchStatus.Ready || m.Status == MatchStatus.InProgress) &&
+            m.Players.Any(p => p.UserId == userId), ct);
+
     public Task<bool> InviteCodeExistsAsync(string inviteCode, CancellationToken ct = default)
         => Set.AnyAsync(m => m.InviteCode == inviteCode, ct);
 

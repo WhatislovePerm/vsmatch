@@ -63,6 +63,9 @@ public class MatchService : IMatchService
         if (await _matches.HasActiveMatchForCourtAsync(req.CourtId, exceptMatchId: null, ct))
             throw new ConflictException("Court already has an active match.");
 
+        if (await _matches.HasActiveMatchForUserAsync(userId, ct))
+            throw new ConflictException("You already have an active match. Finish or cancel it first.");
+
         var match = new Match
         {
             Id = Guid.NewGuid(),
