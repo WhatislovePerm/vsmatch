@@ -164,7 +164,7 @@ export default function App() {
     <div className="h-screen flex flex-col bg-page">
       <header className="bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
         <div className="px-3 sm:px-7 py-2.5 sm:py-3.5">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="w-9 h-9 rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[18px] shrink-0">
                 ⚽
@@ -183,7 +183,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setProfileOpen(true)}
-                    className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors min-w-0 max-w-[190px]"
+                    className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors min-w-0 max-w-[190px]"
                   >
                     <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
                       {(me.name?.[0] ?? '?').toUpperCase()}
@@ -196,7 +196,7 @@ export default function App() {
                     onClick={() => setProfileOpen(true)}
                     aria-label="Профиль"
                     variant="subtle"
-                    className="lg:hidden"
+                    className="xl:hidden"
                   >
                     <span className="text-[12px] font-bold text-ink-2">
                       {(me.name?.[0] ?? '?').toUpperCase()}
@@ -209,8 +209,8 @@ export default function App() {
               </IconButton>
             </div>
 
-            <div className="col-span-2 lg:col-span-1 lg:col-start-2 min-w-0 overflow-x-auto thin-scroll">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-max lg:justify-end pb-0.5">
+            <div className="col-span-2 xl:col-span-1 xl:col-start-2 xl:row-start-1 min-w-0 overflow-x-auto thin-scroll">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-max xl:justify-end pb-0.5">
                 <nav className="inline-grid grid-cols-2 rounded-[14px] bg-subtle border border-line p-0.5 shrink-0">
                   <button
                     type="button"
