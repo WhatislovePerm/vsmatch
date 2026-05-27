@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using VSMatch.Data.Entities;
 using VSMatch.Data.Repositories;
 using VSMatch.Domain;
+using VSMatch.Domain.Moderation;
 using VSMatch.Dtos.Auth;
 using VSMatch.Options;
 
@@ -16,19 +17,22 @@ public class AuthService : IAuthService
     private readonly IVkIdClient _vk;
     private readonly IUserRepository _users;
     private readonly ITokenService _tokens;
+    private readonly IContentModerator _moderator;
 
     public AuthService(
         IOptions<VkIdOptions> opt,
         IVkIdStateStore stateStore,
         IVkIdClient vk,
         IUserRepository users,
-        ITokenService tokens)
+        ITokenService tokens,
+        IContentModerator moderator)
     {
         _opt = opt.Value;
         _stateStore = stateStore;
         _vk = vk;
         _users = users;
         _tokens = tokens;
+        _moderator = moderator;
     }
 
     public string BuildVkIdAuthorizeUrl()
@@ -131,6 +135,7 @@ public class AuthService : IAuthService
             throw new ValidationException("Display name is required.");
         if (name.Length > 64)
             throw new ValidationException("Display name must be 64 characters or less.");
+        _moderator.EnsureClean(name, "Имя");
 
         var user = await _users.GetByIdAsync(userId, ct)
             ?? throw new NotFoundException("User not found.");

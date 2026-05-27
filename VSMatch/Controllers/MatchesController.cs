@@ -172,14 +172,41 @@ public class MatchesController : ControllerBase
     public async Task Events(CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-cache";
-        Response.Headers.Connection = "keep-alive";
+        Response.Headers["X-Accel-Buffering"] = "no";
         Response.ContentType = "text/event-stream; charset=utf-8";
 
-        await foreach (var message in _events.SubscribeAsync(ct))
+        await Response.WriteAsync(": ok\n\n", Encoding.UTF8, ct);
+        await Response.Body.FlushAsync(ct);
+
+        var heartbeat = TimeSpan.FromSeconds(20);
+        await using var enumerator = _events.SubscribeAsync(ct).GetAsyncEnumerator(ct);
+        Task<bool>? moveNext = null;
+
+        try
         {
-            var payload = $"event: {message}\ndata: {{\"type\":\"{message}\"}}\n\n";
-            await Response.WriteAsync(payload, Encoding.UTF8, ct);
-            await Response.Body.FlushAsync(ct);
+            while (!ct.IsCancellationRequested)
+            {
+                moveNext ??= enumerator.MoveNextAsync().AsTask();
+                var completed = await Task.WhenAny(moveNext, Task.Delay(heartbeat, ct));
+
+                if (completed == moveNext)
+                {
+                    if (!await moveNext) break;
+                    var message = enumerator.Current;
+                    moveNext = null;
+                    var payload = $"event: {message}\ndata: {{\"type\":\"{message}\"}}\n\n";
+                    await Response.WriteAsync(payload, Encoding.UTF8, ct);
+                }
+                else
+                {
+                    await Response.WriteAsync(": ping\n\n", Encoding.UTF8, ct);
+                }
+
+                await Response.Body.FlushAsync(ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
         }
     }
 }

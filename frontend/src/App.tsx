@@ -8,7 +8,6 @@ import {
   fetchMyMatchHistory,
   joinMatch,
   joinMatchByInvite,
-  shuffleTeams,
   submitMatchResult,
   updateMatch,
 } from './api/matches';
@@ -111,11 +110,32 @@ export default function App() {
 
   useEffect(() => {
     if (view !== 'app') return;
-    const events = new EventSource('/api/matches/events');
-    events.addEventListener('matches-changed', () => {
-      reloadCourtsAndMatches().catch(() => undefined);
-    });
-    return () => events.close();
+    const stored = loadToken();
+    if (!stored) return;
+
+    let reloadTimer: number | undefined;
+    const scheduleReload = () => {
+      if (reloadTimer !== undefined) return;
+      reloadTimer = window.setTimeout(() => {
+        reloadTimer = undefined;
+        reloadCourtsAndMatches().catch(() => undefined);
+      }, 150);
+    };
+
+    const events = new EventSource(`/api/matches/events?access_token=${encodeURIComponent(stored.token)}`);
+    events.addEventListener('matches-changed', scheduleReload);
+    events.onerror = () => {
+      if (events.readyState === EventSource.CLOSED) {
+        events.close();
+        clearToken();
+        setMe(null);
+        setView('login');
+      }
+    };
+    return () => {
+      if (reloadTimer !== undefined) window.clearTimeout(reloadTimer);
+      events.close();
+    };
   }, [view, reloadCourtsAndMatches]);
 
   const handleLogout = () => {
@@ -284,10 +304,6 @@ export default function App() {
               await joinMatch(match.id, team);
               await reloadCourtsAndMatches();
             }}
-            onShuffleTeams={async (match) => {
-              await shuffleTeams(match.id);
-              await reloadCourtsAndMatches();
-            }}
             onCancelMatch={async (match) => {
               await updateMatch(match.id, {
                 courtId: match.courtId,
@@ -411,8 +427,8 @@ function PlayerHistoryCard({
   currentUserId: string | null;
 }) {
   const me = match.players.find((player) => player.userId === currentUserId);
-  const teamA = match.players.filter((player) => player.team === 'TeamA');
-  const teamB = match.players.filter((player) => player.team === 'TeamB');
+  const playerA = match.players.find((player) => player.team === 'TeamA');
+  const playerB = match.players.find((player) => player.team === 'TeamB');
   const completed = match.status === 'Completed';
   const finishedAt = match.resultSubmittedAt ?? match.updatedAt ?? match.createdAt;
 
@@ -432,11 +448,11 @@ function PlayerHistoryCard({
 
       {completed && (
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[16px] bg-subtle border border-line p-3">
-          <div className="text-[12px] font-semibold text-muted text-right truncate">{match.teamAName}</div>
+          <div className="text-[12px] font-semibold text-muted text-right truncate">{playerA?.displayName ?? 'Игрок 1'}</div>
           <div className="text-[22px] font-bold text-ink tabular-nums">
             {match.teamAScore ?? 0}:{match.teamBScore ?? 0}
           </div>
-          <div className="text-[12px] font-semibold text-muted truncate">{match.teamBName}</div>
+          <div className="text-[12px] font-semibold text-muted truncate">{playerB?.displayName ?? 'Игрок 2'}</div>
         </div>
       )}
 
@@ -452,9 +468,8 @@ function PlayerHistoryCard({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-1 min-[440px]:grid-cols-2 gap-2">
-        <HistoryTeam title={match.teamAName} players={teamA} currentUserId={currentUserId} />
-        <HistoryTeam title={match.teamBName} players={teamB} currentUserId={currentUserId} />
+      <div className="mt-4">
+        <HistoryPlayers players={match.players} currentUserId={currentUserId} />
       </div>
     </article>
   );
@@ -481,43 +496,33 @@ function HistoryStat({
   );
 }
 
-function HistoryTeam({
-  title,
+function HistoryPlayers({
   players,
   currentUserId,
 }: {
-  title: string;
   players: MatchPlayer[];
   currentUserId: string | null;
 }) {
+  if (players.length === 0) return null;
   return (
-    <div className="rounded-[16px] bg-subtle border border-line p-3 min-h-[86px]">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">
-        {title}
-      </div>
-      {players.length === 0 ? (
-        <div className="text-[12px] text-muted">Пусто</div>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          {players.map((player) => {
-            const isMe = player.userId === currentUserId;
-            return (
-              <div
-                key={player.userId}
-                className={[
-                  'flex items-center justify-between gap-2 text-[12px]',
-                  isMe ? 'font-bold text-ink' : 'text-ink-2',
-                ].join(' ')}
-              >
-                <span className="truncate">{player.displayName}</span>
-                <span className="shrink-0 text-muted tabular-nums">
-                  {player.goals}г {player.assists}п
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className="rounded-[16px] bg-subtle border border-line p-3 flex flex-col gap-1.5">
+      {players.map((player) => {
+        const isMe = player.userId === currentUserId;
+        return (
+          <div
+            key={player.userId}
+            className={[
+              'flex items-center justify-between gap-2 text-[12.5px]',
+              isMe ? 'font-bold text-ink' : 'text-ink-2',
+            ].join(' ')}
+          >
+            <span className="truncate">{player.displayName}</span>
+            <span className="shrink-0 text-muted tabular-nums">
+              {player.goals}г {player.assists}п
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -543,17 +548,14 @@ function InviteJoinPanel({
             </div>
             <h2 className="mt-1 text-[20px] font-bold text-ink">{match.title}</h2>
             <p className="mt-1 text-[13px] text-muted">
-              Выбери команду, за которую хочешь присоединиться.
+              Принять приглашение и присоединиться к матчу 1×1.
             </p>
           </div>
           <IconButton onClick={onClose} aria-label="Закрыть">×</IconButton>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button disabled={busy} onClick={() => onJoin('TeamA')}>
-            {match.teamAName}
-          </Button>
-          <Button disabled={busy} variant="secondary" onClick={() => onJoin('TeamB')}>
-            {match.teamBName}
+        <div className="mt-5">
+          <Button block disabled={busy} onClick={() => onJoin('TeamB')}>
+            Присоединиться
           </Button>
         </div>
       </div>

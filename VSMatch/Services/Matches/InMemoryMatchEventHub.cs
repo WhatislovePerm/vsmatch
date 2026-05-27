@@ -11,10 +11,7 @@ public class InMemoryMatchEventHub : IMatchEventHub
     public Task PublishChangedAsync(CancellationToken ct = default)
     {
         foreach (var pair in _subscribers)
-        {
-            if (!pair.Value.Writer.TryWrite("matches-changed"))
-                _subscribers.TryRemove(pair.Key, out _);
-        }
+            pair.Value.Writer.TryWrite("matches-changed");
 
         return Task.CompletedTask;
     }

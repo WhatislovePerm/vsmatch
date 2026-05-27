@@ -1,28 +1,35 @@
+using VSMatch.Domain.Moderation;
 using VSMatch.Dtos.Matches;
-using VSMatch.Domain;
 
 namespace VSMatch.Domain.Matches;
 
 public static class MatchValidationRules
 {
-    public static void Validate(CreateMatchRequest req)
-        => Validate(req.Title, req.DurationMinutes, req.MaxPlayers, req.TeamAName, req.TeamBName);
+    public static void Validate(CreateMatchRequest req, IContentModerator moderator)
+        => Validate(req.Title, req.Description, req.TeamAName, req.TeamBName, req.DurationMinutes, req.MaxPlayers, moderator);
 
-    public static void Validate(UpdateMatchRequest req)
-        => Validate(req.Title, req.DurationMinutes, req.MaxPlayers, req.TeamAName, req.TeamBName);
+    public static void Validate(UpdateMatchRequest req, IContentModerator moderator)
+        => Validate(req.Title, req.Description, req.TeamAName, req.TeamBName, req.DurationMinutes, req.MaxPlayers, moderator);
 
-    public static string NormalizeTeamName(string? value, string fallback)
+    public static string NormalizeTeamName(string? value, string fallback, IContentModerator moderator, string fieldName)
     {
         var name = value?.Trim();
         if (string.IsNullOrWhiteSpace(name))
             return fallback;
         if (name.Length > 64)
             throw new ValidationException("Team name must be 64 characters or less.");
-
+        moderator.EnsureClean(name, fieldName);
         return name;
     }
 
-    private static void Validate(string title, int durationMinutes, int maxPlayers, string? teamAName, string? teamBName)
+    private static void Validate(
+        string title,
+        string? description,
+        string? teamAName,
+        string? teamBName,
+        int durationMinutes,
+        int maxPlayers,
+        IContentModerator moderator)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ValidationException("Title is required.");
@@ -31,7 +38,9 @@ public static class MatchValidationRules
         if (maxPlayers < 2 || maxPlayers > 50)
             throw new ValidationException("Max players must be between 2 and 50.");
 
-        _ = NormalizeTeamName(teamAName, "Команда A");
-        _ = NormalizeTeamName(teamBName, "Команда B");
+        moderator.EnsureClean(title, "Название");
+        moderator.EnsureClean(description, "Описание");
+        _ = NormalizeTeamName(teamAName, "Команда A", moderator, "Команда 1");
+        _ = NormalizeTeamName(teamBName, "Команда B", moderator, "Команда 2");
     }
 }

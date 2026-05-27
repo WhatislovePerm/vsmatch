@@ -4,7 +4,6 @@ import {
   Copy,
   MapPin,
   Play,
-  Shuffle,
   Star,
   Trophy,
   Users,
@@ -12,7 +11,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import type { Court, Match, MatchPlayer, MatchTeam, SubmitMatchResultRequest } from '../types';
-import { Badge, Button, IconButton, Input } from './ui';
+import { Badge, Button, IconButton, Input, NumberInput } from './ui';
 
 interface Props {
   court: Court;
@@ -29,7 +28,6 @@ interface Props {
     maxPlayers: number;
   }) => Promise<void>;
   onJoinMatch: (match: Match, team: MatchTeam) => Promise<void>;
-  onShuffleTeams: (match: Match) => Promise<void>;
   onCancelMatch: (match: Match) => Promise<void>;
   onStartMatch: (match: Match) => Promise<void>;
   onSubmitResult: (match: Match, result: SubmitMatchResultRequest) => Promise<void>;
@@ -42,15 +40,11 @@ export function CourtCard({
   onClose,
   onCreateMatch,
   onJoinMatch,
-  onShuffleTeams,
   onCancelMatch,
   onStartMatch,
   onSubmitResult,
 }: Props) {
-  const [title, setTitle] = useState('Матч');
-  const [teamAName, setTeamAName] = useState('');
-  const [teamBName, setTeamBName] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState(10);
+  const [title, setTitle] = useState('Матч 1×1');
   const [busy, setBusy] = useState(false);
   const [copiedMatchId, setCopiedMatchId] = useState<string | null>(null);
   const [resultMatchId, setResultMatchId] = useState<string | null>(null);
@@ -67,15 +61,13 @@ export function CourtCard({
       await onCreateMatch({
         title,
         description: null,
-        teamAName: teamAName || null,
-        teamBName: teamBName || null,
+        teamAName: null,
+        teamBName: null,
         startsAtUtc: new Date().toISOString(),
         durationMinutes: 90,
-        maxPlayers,
+        maxPlayers: 2,
       });
-      setTitle('Матч');
-      setTeamAName('');
-      setTeamBName('');
+      setTitle('Матч 1×1');
     } finally {
       setBusy(false);
     }
@@ -172,7 +164,6 @@ export function CourtCard({
                   onCancel={() => onCancelMatch(match)}
                   onStart={() => onStartMatch(match)}
                   onJoin={(team) => onJoinMatch(match, team)}
-                  onShuffle={() => onShuffleTeams(match)}
                   onOpenResult={() => setResultMatchId(match.id)}
                   onCloseResult={() => setResultMatchId(null)}
                   onSubmitResult={async (result) => {
@@ -206,30 +197,7 @@ export function CourtCard({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Например: Вечерний матч"
             />
-            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-              <Input
-                label="Команда 1"
-                value={teamAName}
-                onChange={(e) => setTeamAName(e.target.value)}
-                placeholder="Мадрид"
-                maxLength={64}
-              />
-              <Input
-                label="Команда 2"
-                value={teamBName}
-                onChange={(e) => setTeamBName(e.target.value)}
-                placeholder="Барса"
-                maxLength={64}
-              />
-            </div>
-            <Input
-              label="Игроков"
-              type="number"
-              min={2}
-              max={50}
-              value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
-            />
+            <p className="text-[12px] text-muted">Формат 1×1: соперник присоединится по ссылке-приглашению.</p>
             <Button block disabled={busy} type="submit">
               {busy ? 'Создаём…' : 'Создать матч'}
             </Button>
@@ -249,7 +217,6 @@ function MatchRow({
   onCancel,
   onStart,
   onJoin,
-  onShuffle,
   onOpenResult,
   onCloseResult,
   onSubmitResult,
@@ -263,7 +230,6 @@ function MatchRow({
   onCancel: () => void;
   onStart: () => void;
   onJoin: (team: MatchTeam) => void;
-  onShuffle: () => void;
   onOpenResult: () => void;
   onCloseResult: () => void;
   onSubmitResult: (result: SubmitMatchResultRequest) => Promise<void>;
@@ -271,13 +237,10 @@ function MatchRow({
   currentUserId: string | null;
   showResultForm: boolean;
 }) {
-  const teamA = match.players.filter((p) => p.team === 'TeamA');
-  const teamB = match.players.filter((p) => p.team === 'TeamB');
   const currentUserIsPlayer = match.players.some((p) => p.userId === currentUserId);
   const canJoin = !currentUserIsPlayer
     && match.currentPlayers < match.maxPlayers
     && (match.status === 'Scheduled' || match.status === 'Ready');
-  const canShuffle = canManage && match.currentPlayers >= 2 && match.status !== 'InProgress';
   const canStart = canManage && match.currentPlayers >= 2 && match.status !== 'InProgress';
   const canComplete = canManage && match.status === 'InProgress';
 
@@ -301,21 +264,13 @@ function MatchRow({
       </div>
 
       {match.players.length > 0 && (
-        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-          <TeamPlayers title={match.teamAName} players={teamA} />
-          <TeamPlayers title={match.teamBName} players={teamB} />
-        </div>
+        <PlayersList players={match.players} />
       )}
 
       {canJoin && (
-        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onJoin('TeamA')}>
-            Войти в {match.teamAName}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => onJoin('TeamB')}>
-            Войти в {match.teamBName}
-          </Button>
-        </div>
+        <Button variant="secondary" size="sm" onClick={() => onJoin('TeamB')}>
+          Войти в матч
+        </Button>
       )}
 
       <div className="grid grid-cols-1 min-[360px]:flex min-[360px]:flex-wrap gap-2 mt-1">
@@ -327,16 +282,6 @@ function MatchRow({
         >
           {copied ? 'Скопировано' : 'Копировать ссылку'}
         </Button>
-        {canShuffle && (
-          <Button
-            variant="secondary"
-            size="sm"
-            iconLeft={<Shuffle size={14} />}
-            onClick={onShuffle}
-          >
-            Тасовать
-          </Button>
-        )}
         {canManage && match.currentPlayers < 2 ? (
           <Button
             variant="danger"
@@ -378,39 +323,28 @@ function MatchRow({
   );
 }
 
-function TeamPlayers({
-  title,
+function PlayersList({
   players,
   showStats = false,
 }: {
-  title: string;
   players: MatchPlayer[];
   showStats?: boolean;
 }) {
   return (
-    <div className="bg-white border border-line rounded-[16px] p-2.5 min-h-[74px]">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-2 mb-1.5">
-        {title}
-      </div>
-      {players.length === 0 ? (
-        <div className="text-[12px] text-muted">Пусто</div>
-      ) : (
-        <div className="flex flex-col gap-1">
-          {players.map((p) => (
-            <div key={p.userId} className="text-[12px] text-ink-2 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate">{p.displayName}</span>
-                <span className="shrink-0 text-muted tabular-nums">{Math.round(p.rating)}</span>
-              </div>
-              {showStats && (
-                <div className="mt-0.5 text-[11px] text-muted tabular-nums">
-                  {p.goals} г · {p.assists} п · {p.ratingDelta > 0 ? '+' : ''}{Math.round(p.ratingDelta)}
-                </div>
-              )}
+    <div className="bg-white border border-line rounded-[16px] p-2.5 flex flex-col gap-1">
+      {players.map((p) => (
+        <div key={p.userId} className="text-[12.5px] text-ink-2 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate">{p.displayName}</span>
+            <span className="shrink-0 text-muted tabular-nums">{Math.round(p.rating)}</span>
+          </div>
+          {showStats && (
+            <div className="mt-0.5 text-[11px] text-muted tabular-nums">
+              {p.goals} г · {p.assists} п · {p.ratingDelta > 0 ? '+' : ''}{Math.round(p.ratingDelta)}
             </div>
-          ))}
+          )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -459,22 +393,23 @@ function ResultForm({
     }
   };
 
+  const playerA = match.players.find((p) => p.team === 'TeamA');
+  const playerB = match.players.find((p) => p.team === 'TeamB');
+
   return (
     <form onSubmit={submit} className="mt-2 pt-3 border-t border-line flex flex-col gap-3">
       <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-        <Input
-          label="Счёт A"
-          type="number"
+        <NumberInput
+          label={`Счёт · ${playerA?.displayName ?? 'Игрок 1'}`}
           min={0}
           value={teamAScore}
-          onChange={(e) => setTeamAScore(Math.max(0, Number(e.target.value)))}
+          onChange={setTeamAScore}
         />
-        <Input
-          label="Счёт B"
-          type="number"
+        <NumberInput
+          label={`Счёт · ${playerB?.displayName ?? 'Игрок 2'}`}
           min={0}
           value={teamBScore}
-          onChange={(e) => setTeamBScore(Math.max(0, Number(e.target.value)))}
+          onChange={setTeamBScore}
         />
       </div>
 
@@ -482,24 +417,19 @@ function ResultForm({
         {match.players.map((p) => (
           <div key={p.userId} className="grid grid-cols-2 min-[390px]:grid-cols-[minmax(0,1fr)_72px_72px] gap-2 items-end">
             <div className="min-w-0 col-span-2 min-[390px]:col-span-1">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                {p.team === 'TeamA' ? match.teamAName : match.teamBName}
-              </div>
               <div className="text-[13px] font-semibold text-ink truncate">{p.displayName}</div>
             </div>
-            <Input
+            <NumberInput
               label="Голы"
-              type="number"
               min={0}
               value={stats[p.userId]?.goals ?? 0}
-              onChange={(e) => setPlayerStat(p.userId, 'goals', Number(e.target.value))}
+              onChange={(v) => setPlayerStat(p.userId, 'goals', v)}
             />
-            <Input
+            <NumberInput
               label="Пасы"
-              type="number"
               min={0}
               value={stats[p.userId]?.assists ?? 0}
-              onChange={(e) => setPlayerStat(p.userId, 'assists', Number(e.target.value))}
+              onChange={(v) => setPlayerStat(p.userId, 'assists', v)}
             />
           </div>
         ))}

@@ -4,6 +4,7 @@ using VSMatch.Data.Entities;
 using VSMatch.Data.Repositories;
 using VSMatch.Domain;
 using VSMatch.Domain.Matches;
+using VSMatch.Domain.Moderation;
 using VSMatch.Dtos.Matches;
 using VSMatch.Mapping;
 
@@ -15,13 +16,15 @@ public class MatchService : IMatchService
     private readonly IMatchRepository _matches;
     private readonly ICourtRepository _courts;
     private readonly IMatchEventHub _events;
+    private readonly IContentModerator _moderator;
 
-    public MatchService(AppDbContext db, IMatchRepository matches, ICourtRepository courts, IMatchEventHub events)
+    public MatchService(AppDbContext db, IMatchRepository matches, ICourtRepository courts, IMatchEventHub events, IContentModerator moderator)
     {
         _db = db;
         _matches = matches;
         _courts = courts;
         _events = events;
+        _moderator = moderator;
     }
 
     public async Task<IReadOnlyList<MatchDto>> GetAllAsync(Guid? courtId = null, int page = 1, int pageSize = 100, CancellationToken ct = default)
@@ -48,12 +51,14 @@ public class MatchService : IMatchService
     public async Task<MatchDto?> GetByInviteCodeAsync(string inviteCode, CancellationToken ct = default)
     {
         var match = await _matches.GetByInviteCodeAsync(inviteCode, ct);
-        return match is null ? null : MatchMapper.ToDto(match);
+        if (match is null) return null;
+        if (match.Status is not (MatchStatus.Scheduled or MatchStatus.Ready)) return null;
+        return MatchMapper.ToDto(match);
     }
 
     public async Task<MatchDto> CreateAsync(CreateMatchRequest req, Guid userId, CancellationToken ct = default)
     {
-        MatchValidationRules.Validate(req);
+        MatchValidationRules.Validate(req, _moderator);
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -74,8 +79,8 @@ public class MatchService : IMatchService
             InviteCode = await GenerateInviteCodeAsync(ct),
             Title = req.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            TeamAName = MatchValidationRules.NormalizeTeamName(req.TeamAName, "Команда A"),
-            TeamBName = MatchValidationRules.NormalizeTeamName(req.TeamBName, "Команда B"),
+            TeamAName = MatchValidationRules.NormalizeTeamName(req.TeamAName, "Команда A", _moderator, "Команда 1"),
+            TeamBName = MatchValidationRules.NormalizeTeamName(req.TeamBName, "Команда B", _moderator, "Команда 2"),
             StartsAtUtc = DateTime.SpecifyKind(req.StartsAtUtc, DateTimeKind.Utc),
             DurationMinutes = req.DurationMinutes,
             MaxPlayers = req.MaxPlayers,
@@ -103,7 +108,7 @@ public class MatchService : IMatchService
 
     public async Task<MatchDto?> UpdateAsync(Guid id, UpdateMatchRequest req, Guid userId, CancellationToken ct = default)
     {
-        MatchValidationRules.Validate(req);
+        MatchValidationRules.Validate(req, _moderator);
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -120,8 +125,8 @@ public class MatchService : IMatchService
         match.CourtId = req.CourtId;
         match.Title = req.Title.Trim();
         match.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
-        match.TeamAName = MatchValidationRules.NormalizeTeamName(req.TeamAName, "Команда A");
-        match.TeamBName = MatchValidationRules.NormalizeTeamName(req.TeamBName, "Команда B");
+        match.TeamAName = MatchValidationRules.NormalizeTeamName(req.TeamAName, "Команда A", _moderator, "Команда 1");
+        match.TeamBName = MatchValidationRules.NormalizeTeamName(req.TeamBName, "Команда B", _moderator, "Команда 2");
         match.StartsAtUtc = DateTime.SpecifyKind(req.StartsAtUtc, DateTimeKind.Utc);
         match.DurationMinutes = req.DurationMinutes;
         match.MaxPlayers = req.MaxPlayers;

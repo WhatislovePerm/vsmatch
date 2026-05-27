@@ -1,4 +1,5 @@
 import { clsx } from 'clsx';
+import { useEffect, useState } from 'react';
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 
 /* ───── Button ───── */
@@ -104,6 +105,93 @@ export function Input({ label, hint, id, className, ...rest }: InputProps) {
       <input
         id={inputId}
         {...rest}
+        className={clsx(
+          'h-11 px-4 bg-subtle border border-line rounded-[14px]',
+          'text-[14px] text-ink placeholder:text-muted-2',
+          'transition-colors focus:outline-none focus:border-ink-3/40 focus:bg-card',
+          className,
+        )}
+      />
+      {hint && <span className="text-[12px] text-muted">{hint}</span>}
+    </div>
+  );
+}
+
+/* ───── NumberInput ───── */
+
+interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'min' | 'max'> {
+  label?: string;
+  hint?: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+}
+
+export function NumberInput({
+  label,
+  hint,
+  id,
+  className,
+  value,
+  onChange,
+  min,
+  max,
+  onBlur,
+  onFocus,
+  ...rest
+}: NumberInputProps) {
+  const inputId = id ?? rest.name;
+  const [text, setText] = useState(() => String(value));
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setText(String(value));
+  }, [value, editing]);
+
+  const clamp = (n: number) => {
+    let r = n;
+    if (typeof min === 'number') r = Math.max(min, r);
+    if (typeof max === 'number') r = Math.min(max, r);
+    return r;
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && (
+        <label htmlFor={inputId} className="text-[11px] font-bold text-muted uppercase tracking-wider">
+          {label}
+        </label>
+      )}
+      <input
+        {...rest}
+        id={inputId}
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="off"
+        value={text}
+        onFocus={(e) => {
+          setEditing(true);
+          e.target.select();
+          onFocus?.(e);
+        }}
+        onChange={(e) => {
+          const next = e.target.value.replace(/[^\d]/g, '');
+          setText(next);
+          if (next !== '') {
+            const n = Number(next);
+            if (!Number.isNaN(n)) onChange(n);
+          }
+        }}
+        onBlur={(e) => {
+          setEditing(false);
+          const n = text === '' ? (min ?? 0) : Number(text);
+          const clamped = clamp(Number.isNaN(n) ? (min ?? 0) : n);
+          setText(String(clamped));
+          if (clamped !== value) onChange(clamped);
+          onBlur?.(e);
+        }}
         className={clsx(
           'h-11 px-4 bg-subtle border border-line rounded-[14px]',
           'text-[14px] text-ink placeholder:text-muted-2',

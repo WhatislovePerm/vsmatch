@@ -8,6 +8,7 @@ using VSMatch.Data.Repositories;
 using VSMatch.Options;
 using VSMatch.Services.Auth;
 using VSMatch.Services.Courts;
+using VSMatch.Domain.Moderation;
 using VSMatch.Services.Matches;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +42,7 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<ICourtService, CourtService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();
+builder.Services.AddSingleton<IContentModerator, RegexContentModerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddHttpContextAccessor();
