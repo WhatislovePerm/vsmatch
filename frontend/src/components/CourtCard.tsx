@@ -1,10 +1,9 @@
 import { type FormEvent, useState } from 'react';
 import {
+  AlertTriangle,
   Check,
   Copy,
-  MapPin,
   Play,
-  Star,
   Trophy,
   Users,
   X,
@@ -33,6 +32,12 @@ interface Props {
   onSubmitResult: (match: Match, result: SubmitMatchResultRequest) => Promise<void>;
 }
 
+function extractErrorMessage(err: unknown): string | null {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string') return err;
+  return null;
+}
+
 export function CourtCard({
   court,
   matches,
@@ -48,6 +53,7 @@ export function CourtCard({
   const [busy, setBusy] = useState(false);
   const [copiedMatchId, setCopiedMatchId] = useState<string | null>(null);
   const [resultMatchId, setResultMatchId] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const activeMatches = matches.filter(
     (m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress',
@@ -57,6 +63,7 @@ export function CourtCard({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setCreateError(null);
     try {
       await onCreateMatch({
         title,
@@ -68,6 +75,8 @@ export function CourtCard({
         maxPlayers: 2,
       });
       setTitle('Матч 1×1');
+    } catch (err) {
+      setCreateError(extractErrorMessage(err) ?? 'Не удалось создать матч');
     } finally {
       setBusy(false);
     }
@@ -104,36 +113,16 @@ export function CourtCard({
 
       {/* Scrollable body */}
       <div className="overflow-y-auto thin-scroll px-4 sm:px-6 pb-6 flex-1">
-        {/* Метаданные */}
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13.5px] mt-2">
-          {court.sport && (
-            <>
-              <dt className="text-muted font-medium">Вид</dt>
-              <dd className="text-ink-2">{court.sport}</dd>
-            </>
-          )}
-          {court.surface && (
-            <>
-              <dt className="text-muted font-medium">Покрытие</dt>
-              <dd className="text-ink-2">{court.surface}</dd>
-            </>
-          )}
-          <dt className="text-muted font-medium flex items-center gap-1.5">
-            <MapPin size={13} /> Координаты
-          </dt>
-          <dd className="text-ink-2 tabular-nums">
-            {court.lat.toFixed(5)}, {court.lon.toFixed(5)}
-          </dd>
-          <dt className="text-muted font-medium flex items-center gap-1.5">
-            <Star size={13} /> Рейтинг
-          </dt>
-          <dd className="text-ink-2">
-            {court.rating != null ? court.rating.toFixed(1) : '—'}
-          </dd>
-        </dl>
+        {/* Покрытие (если есть) */}
+        {court.surface && (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13.5px] mt-2">
+            <dt className="text-muted font-medium">Покрытие</dt>
+            <dd className="text-ink-2">{court.surface}</dd>
+          </dl>
+        )}
 
         {court.description && (
-          <p className="mt-4 pt-4 border-t border-line text-[13px] text-muted leading-relaxed">
+          <p className={`text-[13px] text-muted leading-relaxed ${court.surface ? 'mt-4 pt-4 border-t border-line' : 'mt-2'}`}>
             {court.description}
           </p>
         )}
@@ -194,10 +183,32 @@ export function CourtCard({
             <Input
               label="Название"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setCreateError(null);
+              }}
               placeholder="Например: Вечерний матч"
+              maxLength={64}
             />
-            <p className="text-[12px] text-muted">Формат 1×1: соперник присоединится по ссылке-приглашению.</p>
+            <p className="text-[12px] text-muted">
+              Формат 1×1: соперник присоединится по ссылке-приглашению.
+            </p>
+
+            {createError && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-[12px] bg-danger-bg border border-danger-line text-danger text-[12.5px] leading-snug">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span className="break-words">{createError}</span>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-[12px] bg-warn-bg border border-warn-line text-warn text-[12px] leading-snug">
+              <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+              <span>
+                Не используйте оскорбительный язык и запрещённый контент.
+                Нарушения ведут к блокировке.
+              </span>
+            </div>
+
             <Button block disabled={busy} type="submit">
               {busy ? 'Создаём…' : 'Создать матч'}
             </Button>

@@ -1,15 +1,18 @@
 import { type FormEvent, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Me } from '../api/auth';
+import type { Match } from '../types';
 import { Button, IconButton, Input } from './ui';
+import { HistoryView } from './HistoryView';
 
 interface Props {
   me: Me;
+  history: Match[];
   onClose: () => void;
   onSave: (displayName: string) => Promise<void>;
 }
 
-export function ProfilePanel({ me, onClose, onSave }: Props) {
+export function ProfilePanel({ me, history, onClose, onSave }: Props) {
   const [displayName, setDisplayName] = useState(me.name ?? '');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -27,8 +30,8 @@ export function ProfilePanel({ me, onClose, onSave }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 z-[1200] bg-ink/10 backdrop-blur-[2px] flex items-start justify-center p-4 sm:p-8">
-      <section className="w-full max-w-[420px] bg-white border border-line rounded-[28px] shadow-[0_24px_70px_-22px_rgba(31,44,65,0.32)] overflow-hidden">
+    <div className="absolute inset-0 z-[1200] bg-ink/10 backdrop-blur-[2px] flex items-start justify-center p-4 sm:p-8 overflow-y-auto">
+      <section className="w-full max-w-[460px] bg-white border border-line rounded-[28px] shadow-[0_24px_70px_-22px_rgba(31,44,65,0.32)] overflow-hidden my-auto">
         <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-line">
           <div>
             <h2 className="text-[18px] font-bold tracking-tight text-ink">Профиль</h2>
@@ -39,7 +42,7 @@ export function ProfilePanel({ me, onClose, onSave }: Props) {
           </IconButton>
         </div>
 
-        <form onSubmit={submit} className="p-6 flex flex-col gap-4">
+        <form onSubmit={submit} className="p-6 flex flex-col gap-4 border-b border-line">
           <Input
             label="Логин"
             value={displayName}
@@ -60,6 +63,10 @@ export function ProfilePanel({ me, onClose, onSave }: Props) {
             {busy ? 'Сохраняем…' : 'Сохранить'}
           </Button>
         </form>
+
+        <div className="p-6">
+          <HistoryView matches={history} currentUserId={me.userId} />
+        </div>
       </section>
     </div>
   );

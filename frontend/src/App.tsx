@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CircleCheck, History, LogOut, Map } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { fetchCourts } from './api/courts';
 import {
   createMatch,
@@ -19,10 +19,9 @@ import { Login } from './components/Login';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
 import { Badge, Button, IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
-import type { Court, Match, MatchPlayer, MatchTeam, SubmitMatchResultRequest } from './types';
+import type { Court, Match, MatchTeam, SubmitMatchResultRequest } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
-type AppTab = 'map' | 'history';
 const PENDING_INVITE_KEY = 'vsmatch.pendingInvite';
 
 function detectInitialView(): View {
@@ -48,7 +47,6 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [pendingInviteMatch, setPendingInviteMatch] = useState<Match | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
-  const [appTab, setAppTab] = useState<AppTab>('map');
 
   const loadHistorySafely = useCallback(async () => {
     try {
@@ -91,7 +89,7 @@ export default function App() {
         if (court) setSelected(court);
       }
       setView('app');
-    } catch (e) {
+    } catch {
       clearToken();
       setLoginError(null);
       setView('login');
@@ -145,7 +143,6 @@ export default function App() {
     setMatches([]);
     setMyMatchHistory([]);
     setSelected(null);
-    setAppTab('map');
     setView('login');
   };
 
@@ -179,12 +176,11 @@ export default function App() {
   if (view === 'login') return <Login error={loginError} />;
   if (view === 'loading') return <FullScreenLoader />;
 
-  const freeCount = courts.filter((c) => c.isFree).length;
   return (
     <div className="h-screen flex flex-col bg-page">
       <header className="bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
         <div className="px-3 sm:px-7 py-2.5 sm:py-3.5">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
+          <div className="flex items-center justify-between gap-3 min-w-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="w-9 h-9 rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[18px] shrink-0">
                 ⚽
@@ -197,13 +193,18 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {me && (
+                <Badge tone="info" className="shrink-0 whitespace-nowrap">
+                  {Math.round(me.rating)} рейтинг
+                </Badge>
+              )}
               {me && (
                 <>
                   <button
                     type="button"
                     onClick={() => setProfileOpen(true)}
-                    className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors min-w-0 max-w-[190px]"
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors min-w-0 max-w-[190px]"
                   >
                     <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
                       {(me.name?.[0] ?? '?').toUpperCase()}
@@ -216,7 +217,7 @@ export default function App() {
                     onClick={() => setProfileOpen(true)}
                     aria-label="Профиль"
                     variant="subtle"
-                    className="xl:hidden"
+                    className="sm:hidden"
                   >
                     <span className="text-[12px] font-bold text-ink-2">
                       {(me.name?.[0] ?? '?').toUpperCase()}
@@ -228,69 +229,17 @@ export default function App() {
                 <LogOut size={16} />
               </IconButton>
             </div>
-
-            <div className="col-span-2 xl:col-span-1 xl:col-start-2 xl:row-start-1 min-w-0 overflow-x-auto thin-scroll">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-max xl:justify-end pb-0.5">
-                <nav className="inline-grid grid-cols-2 rounded-[14px] bg-subtle border border-line p-0.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAppTab('map');
-                    }}
-                    className={[
-                      'h-9 px-3 sm:px-4 rounded-[11px] text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap',
-                      appTab === 'map' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink',
-                    ].join(' ')}
-                  >
-                    <Map size={14} />
-                    <span>Карта</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelected(null);
-                      setAppTab('history');
-                    }}
-                    className={[
-                      'h-9 px-3 sm:px-4 rounded-[11px] text-[13px] font-semibold transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap',
-                      appTab === 'history' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink',
-                    ].join(' ')}
-                  >
-                    <History size={14} />
-                    <span>История</span>
-                  </button>
-                </nav>
-                {me && (
-                  <Badge tone="info" className="shrink-0 whitespace-nowrap">
-                    {Math.round(me.rating)} рейтинг
-                  </Badge>
-                )}
-                <Badge tone="neutral" className="shrink-0 whitespace-nowrap">
-                  {courts.length} коробок
-                </Badge>
-                <Badge tone={freeCount > 0 ? 'success' : 'neutral'} className="shrink-0 whitespace-nowrap">
-                  {freeCount} свободно
-                </Badge>
-              </div>
-            </div>
           </div>
         </div>
       </header>
 
       <main className="flex-1 relative overflow-hidden">
-        {appTab === 'map' ? (
-          <CourtMap
-            courts={courts}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelected}
-          />
-        ) : (
-          <PlayerHistoryView
-            matches={myMatchHistory}
-            currentUserId={me?.userId ?? null}
-          />
-        )}
-        {appTab === 'map' && selected && (
+        <CourtMap
+          courts={courts}
+          selectedId={selected?.id ?? null}
+          onSelect={setSelected}
+        />
+        {selected && (
           <CourtCard
             court={selected}
             matches={matches.filter((m) => m.courtId === selected.id)}
@@ -341,6 +290,7 @@ export default function App() {
         {profileOpen && me && (
           <ProfilePanel
             me={me}
+            history={myMatchHistory}
             onClose={() => setProfileOpen(false)}
             onSave={async (displayName) => {
               await updateProfile(displayName);
@@ -362,167 +312,6 @@ export default function App() {
           />
         )}
       </main>
-    </div>
-  );
-}
-
-function PlayerHistoryView({
-  matches,
-  currentUserId,
-}: {
-  matches: Match[];
-  currentUserId: string | null;
-}) {
-  const completedCount = matches.filter((match) => match.status === 'Completed').length;
-
-  return (
-    <section className="h-full overflow-y-auto thin-scroll bg-page px-3 sm:px-7 py-4 sm:py-7">
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4 sm:mb-6">
-          <div>
-            <div className="text-[12px] font-bold uppercase tracking-wider text-muted">
-              Личная история
-            </div>
-            <h1 className="mt-1 text-[24px] sm:text-[30px] font-bold tracking-tight text-ink">
-              Матчи игрока
-            </h1>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <Badge tone="neutral">{matches.length} всего</Badge>
-            <Badge tone="success">{completedCount} завершено</Badge>
-          </div>
-        </div>
-
-        {matches.length === 0 ? (
-          <div className="bg-white border border-line rounded-[28px] p-6 sm:p-8 text-center shadow-[0_4px_20px_-8px_rgba(31,44,65,0.08)]">
-            <div className="mx-auto w-11 h-11 rounded-[16px] bg-subtle flex items-center justify-center text-muted">
-              <History size={22} />
-            </div>
-            <h2 className="mt-4 text-[18px] font-bold text-ink">Истории пока нет</h2>
-            <p className="mt-1 text-[13px] text-muted">
-              Завершенные и отмененные матчи появятся здесь после участия.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            {matches.map((match) => (
-              <PlayerHistoryCard
-                key={match.id}
-                match={match}
-                currentUserId={currentUserId}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function PlayerHistoryCard({
-  match,
-  currentUserId,
-}: {
-  match: Match;
-  currentUserId: string | null;
-}) {
-  const me = match.players.find((player) => player.userId === currentUserId);
-  const playerA = match.players.find((player) => player.team === 'TeamA');
-  const playerB = match.players.find((player) => player.team === 'TeamB');
-  const completed = match.status === 'Completed';
-  const finishedAt = match.resultSubmittedAt ?? match.updatedAt ?? match.createdAt;
-
-  return (
-    <article className="bg-white border border-line rounded-[24px] p-4 sm:p-5 shadow-[0_4px_20px_-8px_rgba(31,44,65,0.08)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[15px] font-bold text-ink truncate">{match.title}</div>
-          <div className="mt-1 text-[12.5px] text-muted truncate">
-            {match.courtName} · {new Date(finishedAt).toLocaleDateString('ru-RU')}
-          </div>
-        </div>
-        <Badge tone={completed ? 'success' : 'neutral'} iconLeft={completed ? <CircleCheck size={13} /> : undefined}>
-          {completed ? 'Завершён' : 'Отменён'}
-        </Badge>
-      </div>
-
-      {completed && (
-        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[16px] bg-subtle border border-line p-3">
-          <div className="text-[12px] font-semibold text-muted text-right truncate">{playerA?.displayName ?? 'Игрок 1'}</div>
-          <div className="text-[22px] font-bold text-ink tabular-nums">
-            {match.teamAScore ?? 0}:{match.teamBScore ?? 0}
-          </div>
-          <div className="text-[12px] font-semibold text-muted truncate">{playerB?.displayName ?? 'Игрок 2'}</div>
-        </div>
-      )}
-
-      {me && (
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <HistoryStat label="Голы" value={me.goals} />
-          <HistoryStat label="Пасы" value={me.assists} />
-          <HistoryStat
-            label="Рейтинг"
-            value={`${me.ratingDelta > 0 ? '+' : ''}${Math.round(me.ratingDelta)}`}
-            tone={me.ratingDelta >= 0 ? 'positive' : 'negative'}
-          />
-        </div>
-      )}
-
-      <div className="mt-4">
-        <HistoryPlayers players={match.players} currentUserId={currentUserId} />
-      </div>
-    </article>
-  );
-}
-
-function HistoryStat({
-  label,
-  value,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: number | string;
-  tone?: 'neutral' | 'positive' | 'negative';
-}) {
-  const valueClass = tone === 'positive'
-    ? 'text-success'
-    : tone === 'negative' ? 'text-danger' : 'text-ink';
-
-  return (
-    <div className="rounded-[16px] bg-subtle border border-line p-3">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-muted">{label}</div>
-      <div className={`mt-1 text-[18px] font-bold tabular-nums ${valueClass}`}>{value}</div>
-    </div>
-  );
-}
-
-function HistoryPlayers({
-  players,
-  currentUserId,
-}: {
-  players: MatchPlayer[];
-  currentUserId: string | null;
-}) {
-  if (players.length === 0) return null;
-  return (
-    <div className="rounded-[16px] bg-subtle border border-line p-3 flex flex-col gap-1.5">
-      {players.map((player) => {
-        const isMe = player.userId === currentUserId;
-        return (
-          <div
-            key={player.userId}
-            className={[
-              'flex items-center justify-between gap-2 text-[12.5px]',
-              isMe ? 'font-bold text-ink' : 'text-ink-2',
-            ].join(' ')}
-          >
-            <span className="truncate">{player.displayName}</span>
-            <span className="shrink-0 text-muted tabular-nums">
-              {player.goals}г {player.assists}п
-            </span>
-          </div>
-        );
-      })}
     </div>
   );
 }
