@@ -1,22 +1,22 @@
 import type { CreateMatchRequest, Match, MatchTeam, SubmitMatchResultRequest, UpdateMatchRequest } from '../types';
-import { authFetch } from './client';
+import { authFetch, throwApiError } from './client';
 
 export async function fetchMatches(courtId?: string): Promise<Match[]> {
   const qs = courtId ? `?courtId=${encodeURIComponent(courtId)}` : '';
   const res = await authFetch(`/api/matches${qs}`);
-  if (!res.ok) throw new Error(`Failed to load matches: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось загрузить матчи');
   return res.json();
 }
 
 export async function fetchMyMatchHistory(): Promise<Match[]> {
   const res = await authFetch('/api/matches/me/history');
-  if (!res.ok) throw new Error(`Failed to load match history: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось загрузить историю');
   return res.json();
 }
 
 export async function fetchMatchByInvite(inviteCode: string): Promise<Match> {
   const res = await authFetch(`/api/matches/invite/${encodeURIComponent(inviteCode)}`);
-  if (!res.ok) throw new Error(`Failed to load match invite: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось открыть приглашение');
   return res.json();
 }
 
@@ -26,7 +26,7 @@ export async function createMatch(req: CreateMatchRequest): Promise<Match> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  if (!res.ok) throw new Error(`Failed to create match: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось создать матч');
   return res.json();
 }
 
@@ -36,13 +36,13 @@ export async function updateMatch(id: string, req: UpdateMatchRequest): Promise<
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  if (!res.ok) throw new Error(`Failed to update match: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось обновить матч');
   return res.json();
 }
 
 export async function deleteMatch(id: string): Promise<void> {
   const res = await authFetch(`/api/matches/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to delete match: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось удалить матч');
 }
 
 export async function joinMatch(id: string, team: MatchTeam): Promise<Match> {
@@ -51,7 +51,7 @@ export async function joinMatch(id: string, team: MatchTeam): Promise<Match> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ team }),
   });
-  if (!res.ok) throw new Error(`Failed to join match: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось войти в матч');
   return res.json();
 }
 
@@ -61,13 +61,13 @@ export async function joinMatchByInvite(inviteCode: string, team: MatchTeam): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ team }),
   });
-  if (!res.ok) throw new Error(`Failed to join match by invite: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось присоединиться по приглашению');
   return res.json();
 }
 
 export async function shuffleTeams(id: string): Promise<Match> {
   const res = await authFetch(`/api/matches/${id}/teams/shuffle`, { method: 'POST' });
-  if (!res.ok) throw new Error(`Failed to shuffle teams: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось перемешать команды');
   return res.json();
 }
 
@@ -77,12 +77,12 @@ export async function submitMatchResult(id: string, req: SubmitMatchResultReques
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  if (!res.ok) throw new Error(`Failed to submit match result: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось сохранить результат');
   return res.json();
 }
 
 export async function leaveMatch(id: string): Promise<Match> {
   const res = await authFetch(`/api/matches/${id}/players/me`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Failed to leave match: ${res.status}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось покинуть матч');
   return res.json();
 }

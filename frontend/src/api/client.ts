@@ -12,3 +12,16 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
   }
   return res;
 }
+
+/** Кидает ошибку с человеческим сообщением из тела { error: { message } }. */
+export async function throwApiError(res: Response, fallback: string): Promise<never> {
+  let message: string | undefined;
+  try {
+    const body = await res.json() as { error?: { message?: string } | string };
+    if (typeof body?.error === 'string') message = body.error;
+    else if (body?.error && typeof body.error === 'object') message = body.error.message;
+  } catch {
+    /* ignore — тело может быть пустым или не JSON */
+  }
+  throw new Error(message || fallback);
+}

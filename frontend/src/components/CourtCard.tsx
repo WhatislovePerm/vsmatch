@@ -201,14 +201,6 @@ export function CourtCard({
               </div>
             )}
 
-            <div className="flex items-start gap-2 px-3 py-2.5 rounded-[12px] bg-warn-bg border border-warn-line text-warn text-[12px] leading-snug">
-              <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-              <span>
-                Не используйте оскорбительный язык и запрещённый контент.
-                Нарушения ведут к блокировке.
-              </span>
-            </div>
-
             <Button block disabled={busy} type="submit">
               {busy ? 'Создаём…' : 'Создать матч'}
             </Button>
@@ -371,34 +363,29 @@ function ResultForm({
 }) {
   const [teamAScore, setTeamAScore] = useState(0);
   const [teamBScore, setTeamBScore] = useState(0);
-  const [stats, setStats] = useState<Record<string, { goals: number; assists: number }>>(
-    () => Object.fromEntries(match.players.map((p) => [p.userId, { goals: 0, assists: 0 }])),
+  const [assists, setAssists] = useState<Record<string, number>>(
+    () => Object.fromEntries(match.players.map((p) => [p.userId, 0])),
   );
   const [busy, setBusy] = useState(false);
-
-  const setPlayerStat = (userId: string, key: 'goals' | 'assists', value: number) => {
-    setStats((prev) => ({
-      ...prev,
-      [userId]: {
-        ...prev[userId],
-        [key]: Math.max(0, value),
-      },
-    }));
-  };
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setError(null);
     try {
+      // В 1×1 голы каждого игрока = счёт его команды.
       await onSubmit({
         teamAScore,
         teamBScore,
         players: match.players.map((p) => ({
           userId: p.userId,
-          goals: stats[p.userId]?.goals ?? 0,
-          assists: stats[p.userId]?.assists ?? 0,
+          goals: p.team === 'TeamA' ? teamAScore : teamBScore,
+          assists: Math.max(0, assists[p.userId] ?? 0),
         })),
       });
+    } catch (err) {
+      setError(extractErrorMessage(err) ?? 'Не удалось сохранить результат');
     } finally {
       setBusy(false);
     }
@@ -426,25 +413,26 @@ function ResultForm({
 
       <div className="flex flex-col gap-2">
         {match.players.map((p) => (
-          <div key={p.userId} className="grid grid-cols-2 min-[390px]:grid-cols-[minmax(0,1fr)_72px_72px] gap-2 items-end">
-            <div className="min-w-0 col-span-2 min-[390px]:col-span-1">
+          <div key={p.userId} className="grid grid-cols-[minmax(0,1fr)_96px] gap-2 items-end">
+            <div className="min-w-0">
               <div className="text-[13px] font-semibold text-ink truncate">{p.displayName}</div>
             </div>
             <NumberInput
-              label="Голы"
-              min={0}
-              value={stats[p.userId]?.goals ?? 0}
-              onChange={(v) => setPlayerStat(p.userId, 'goals', v)}
-            />
-            <NumberInput
               label="Пасы"
               min={0}
-              value={stats[p.userId]?.assists ?? 0}
-              onChange={(v) => setPlayerStat(p.userId, 'assists', v)}
+              value={assists[p.userId] ?? 0}
+              onChange={(v) => setAssists((prev) => ({ ...prev, [p.userId]: Math.max(0, v) }))}
             />
           </div>
         ))}
       </div>
+
+      {error && (
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-[12px] bg-danger-bg border border-danger-line text-danger text-[12.5px] leading-snug">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span className="break-words">{error}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
         <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
