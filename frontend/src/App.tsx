@@ -196,7 +196,7 @@ export default function App() {
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {me && (
                 <Badge tone="info" className="shrink-0 whitespace-nowrap">
-                  {Math.round(me.rating)} рейтинг
+                  Рейтинг: {Math.round(me.rating)} 
                 </Badge>
               )}
               {me && (
