@@ -378,9 +378,6 @@ function ResultForm({
 }) {
   const [teamAScore, setTeamAScore] = useState(0);
   const [teamBScore, setTeamBScore] = useState(0);
-  const [assists, setAssists] = useState<Record<string, number>>(
-    () => Object.fromEntries(match.players.map((p) => [p.userId, 0])),
-  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -389,14 +386,14 @@ function ResultForm({
     setBusy(true);
     setError(null);
     try {
-      // В 1×1 голы каждого игрока = счёт его команды.
+      // В 1×1 голы каждого игрока = счёт его команды. Пасов в форме нет.
       await onSubmit({
         teamAScore,
         teamBScore,
         players: match.players.map((p) => ({
           userId: p.userId,
           goals: p.team === 'TeamA' ? teamAScore : teamBScore,
-          assists: Math.max(0, assists[p.userId] ?? 0),
+          assists: 0,
         })),
       });
     } catch (err) {
@@ -424,22 +421,6 @@ function ResultForm({
           value={teamBScore}
           onChange={setTeamBScore}
         />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {match.players.map((p) => (
-          <div key={p.userId} className="grid grid-cols-[minmax(0,1fr)_96px] gap-2 items-end">
-            <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-ink truncate">{p.displayName}</div>
-            </div>
-            <NumberInput
-              label="Пасы"
-              min={0}
-              value={assists[p.userId] ?? 0}
-              onChange={(v) => setAssists((prev) => ({ ...prev, [p.userId]: Math.max(0, v) }))}
-            />
-          </div>
-        ))}
       </div>
 
       {error && (
