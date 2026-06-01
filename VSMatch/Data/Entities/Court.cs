@@ -5,6 +5,7 @@ public class Court
     public Guid Id { get; set; }
     public long OsmId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? Address { get; set; }
     public string? Description { get; set; }
     public double Lat { get; set; }
     public double Lon { get; set; }

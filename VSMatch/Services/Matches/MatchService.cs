@@ -173,6 +173,8 @@ public class MatchService : IMatchService
             throw new InvalidMatchStateException("Cannot join a completed or cancelled match.");
         if (match.Players.Any(p => p.UserId == userId))
             return MatchMapper.ToDto(match);
+        if (await _matches.HasActiveMatchForUserAsync(userId, ct))
+            throw new ConflictException("You already have an active match. Finish, cancel, or leave it first.");
         if (match.Players.Count >= match.MaxPlayers)
             throw new ConflictException("Match is full.");
 
@@ -270,19 +272,34 @@ public class MatchService : IMatchService
 
     public async Task<MatchDto?> LeaveAsync(Guid id, Guid userId, CancellationToken ct = default)
     {
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
+        if (match.Status == MatchStatus.InProgress)
+            throw new InvalidMatchStateException("Cannot leave a match that has already started.");
+        if (match.Status is MatchStatus.Completed or MatchStatus.Cancelled)
+            throw new InvalidMatchStateException("Cannot leave a final match.");
 
         var player = match.Players.FirstOrDefault(p => p.UserId == userId);
         if (player is null) return MatchMapper.ToDto(match);
 
         match.Players.Remove(player);
-        if (match.Status == MatchStatus.Ready && match.Players.Count < 2)
+        if (match.CreatedByUserId == userId || match.Players.Count == 0)
+        {
+            match.Status = MatchStatus.Cancelled;
+        }
+        else if (match.Status == MatchStatus.Ready && match.Players.Count < 2)
+        {
             match.Status = MatchStatus.Scheduled;
+        }
         match.UpdatedAt = DateTime.UtcNow;
 
         _matches.Update(match);
         await _matches.SaveChangesAsync(ct);
+        await RecalculateCourtAvailabilityAsync(match.CourtId, exceptMatchId: null, ct);
+        await _matches.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         await _events.PublishChangedAsync(ct);
 
         return await GetByIdAsync(id, ct);

@@ -3,6 +3,7 @@ namespace VSMatch.Dtos.Courts;
 public record CourtDto(
     Guid Id,
     string Name,
+    string? Address,
     string? Description,
     double Lat,
     double Lon,

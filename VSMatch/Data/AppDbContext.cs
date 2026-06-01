@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.OsmId).IsUnique();
             e.Property(x => x.Name).HasMaxLength(256).IsRequired();
+            e.Property(x => x.Address).HasMaxLength(512);
             e.Property(x => x.Description).HasMaxLength(1024);
             e.Property(x => x.Sport).HasMaxLength(64);
             e.Property(x => x.Surface).HasMaxLength(64);

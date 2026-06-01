@@ -23,5 +23,15 @@ public class CourtService : ICourtService
     }
 
     private static CourtDto ToDto(Court c) =>
-        new(c.Id, c.Name, c.Description, c.Lat, c.Lon, c.Sport, c.Surface, c.Rating, c.IsFree);
+        new(c.Id, GetDisplayName(c), c.Address, GetDisplayDescription(c), c.Lat, c.Lon, c.Sport, c.Surface, c.Rating, c.IsFree);
+
+    private static string GetDisplayName(Court c)
+        => c.Name.StartsWith("Коробка #", StringComparison.Ordinal)
+            ? $"Площадка #{c.OsmId}"
+            : c.Name;
+
+    private static string? GetDisplayDescription(Court c)
+        => c.Description?.StartsWith("покрытие:", StringComparison.OrdinalIgnoreCase) == true
+            ? null
+            : c.Description;
 }
