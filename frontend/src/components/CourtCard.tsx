@@ -27,6 +27,7 @@ interface Props {
     maxPlayers: number;
   }) => Promise<void>;
   onJoinMatch: (match: Match, team: MatchTeam) => Promise<void>;
+  onLeaveMatch: (match: Match) => Promise<void>;
   onCancelMatch: (match: Match) => Promise<void>;
   onStartMatch: (match: Match) => Promise<void>;
   onSubmitResult: (match: Match, result: SubmitMatchResultRequest) => Promise<void>;
@@ -45,6 +46,7 @@ export function CourtCard({
   onClose,
   onCreateMatch,
   onJoinMatch,
+  onLeaveMatch,
   onCancelMatch,
   onStartMatch,
   onSubmitResult,
@@ -113,16 +115,14 @@ export function CourtCard({
 
       {/* Scrollable body */}
       <div className="overflow-y-auto thin-scroll px-4 sm:px-6 pb-6 flex-1">
-        {/* Покрытие (если есть) */}
-        {court.surface && (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13.5px] mt-2">
-            <dt className="text-muted font-medium">Покрытие</dt>
-            <dd className="text-ink-2">{court.surface}</dd>
-          </dl>
+        {court.address && (
+          <p className="text-[13px] text-ink-2 leading-relaxed mt-2">
+            {court.address}
+          </p>
         )}
 
         {court.description && (
-          <p className={`text-[13px] text-muted leading-relaxed ${court.surface ? 'mt-4 pt-4 border-t border-line' : 'mt-2'}`}>
+          <p className={`text-[13px] text-muted leading-relaxed ${court.address ? 'mt-3' : 'mt-2'}`}>
             {court.description}
           </p>
         )}
@@ -151,6 +151,7 @@ export function CourtCard({
                     setCopiedMatchId(match.id);
                   }}
                   onCancel={() => onCancelMatch(match)}
+                  onLeave={() => onLeaveMatch(match)}
                   onStart={() => onStartMatch(match)}
                   onJoin={(team) => onJoinMatch(match, team)}
                   onOpenResult={() => setResultMatchId(match.id)}
@@ -218,6 +219,7 @@ function MatchRow({
   copied,
   onCopy,
   onCancel,
+  onLeave,
   onStart,
   onJoin,
   onOpenResult,
@@ -231,6 +233,7 @@ function MatchRow({
   copied: boolean;
   onCopy: () => void;
   onCancel: () => void;
+  onLeave: () => void;
   onStart: () => void;
   onJoin: (team: MatchTeam) => void;
   onOpenResult: () => void;
@@ -241,6 +244,9 @@ function MatchRow({
   showResultForm: boolean;
 }) {
   const currentUserIsPlayer = match.players.some((p) => p.userId === currentUserId);
+  const canLeave = currentUserIsPlayer
+    && !canManage
+    && (match.status === 'Scheduled' || match.status === 'Ready');
   const canJoin = !currentUserIsPlayer
     && match.currentPlayers < match.maxPlayers
     && (match.status === 'Scheduled' || match.status === 'Ready');
@@ -293,6 +299,15 @@ function MatchRow({
             onClick={onCancel}
           >
             Отменить
+          </Button>
+        ) : canLeave ? (
+          <Button
+            variant="danger"
+            size="sm"
+            iconLeft={<XCircle size={14} />}
+            onClick={onLeave}
+          >
+            Выйти
           </Button>
         ) : canStart ? (
           <Button

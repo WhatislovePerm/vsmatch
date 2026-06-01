@@ -1,6 +1,7 @@
 export interface Court {
   id: string;
   name: string;
+  address: string | null;
   description: string | null;
   lat: number;
   lon: number;
