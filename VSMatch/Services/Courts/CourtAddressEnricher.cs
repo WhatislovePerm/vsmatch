@@ -32,6 +32,20 @@ public class CourtAddressEnricher : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        try
+        {
+            await RunAsync(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { /* shutdown */ }
+        catch (Exception ex)
+        {
+            // Фоновая обогаталка адресов не должна валить весь API.
+            _log.LogError(ex, "CourtAddressEnricher aborted with an unexpected exception; API продолжит работу.");
+        }
+    }
+
+    private async Task RunAsync(CancellationToken ct)
+    {
         // Дать API время прогреться
         try { await Task.Delay(TimeSpan.FromSeconds(10), ct); }
         catch (OperationCanceledException) { return; }
