@@ -69,32 +69,52 @@ export default function App() {
   }, [loadHistorySafely]);
 
   const loadUserAndCourts = useCallback(async () => {
+    // Шаг 1: проверка авторизации. Только её провал валит сессию.
+    let meRes: Me;
     try {
-      const meRes = await getMe();
-      setMe(meRes);
+      meRes = await getMe();
+    } catch {
+      clearToken();
+      setLoginError(null);
+      setView('login');
+      return;
+    }
+    setMe(meRes);
 
-      const [courtsRes, matchesRes] = await Promise.all([
-        fetchCourts(),
-        fetchMatches(),
-      ]);
-      setCourts(courtsRes);
-      setMatches(matchesRes);
+    // Шаг 2: данные приложения. Ошибки тут НЕ должны логаутить юзера.
+    let courtsRes: Court[] = [];
+    try {
+      const [c, m] = await Promise.all([fetchCourts(), fetchMatches()]);
+      courtsRes = c;
+      setCourts(c);
+      setMatches(m);
+    } catch (e) {
+      console.warn('Не удалось загрузить площадки/матчи', e);
+    }
+
+    try {
       const historyRes = await loadHistorySafely();
       setMyMatchHistory(historyRes);
-      const pendingInvite = localStorage.getItem(PENDING_INVITE_KEY);
-      if (pendingInvite) {
+    } catch (e) {
+      console.warn('Не удалось загрузить историю матчей', e);
+    }
+
+    // Шаг 3: pending invite — тоже не критично. Протухшую ссылку просто чистим.
+    const pendingInvite = localStorage.getItem(PENDING_INVITE_KEY);
+    if (pendingInvite) {
+      try {
         const invited = await fetchMatchByInvite(pendingInvite);
         window.history.replaceState(null, '', '/');
         setPendingInviteMatch(invited);
         const court = courtsRes.find((c) => c.id === invited.courtId);
         if (court) setSelected(court);
+      } catch {
+        localStorage.removeItem(PENDING_INVITE_KEY);
+        window.history.replaceState(null, '', '/');
       }
-      setView('app');
-    } catch {
-      clearToken();
-      setLoginError(null);
-      setView('login');
     }
+
+    setView('app');
   }, [loadHistorySafely]);
 
   useEffect(() => {
