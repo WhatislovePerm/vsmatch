@@ -56,7 +56,7 @@ public class AuthService : IAuthService
     public async Task<MeDto> GetMeAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await _users.GetByIdAsync(userId, ct)
-            ?? throw new NotFoundException("User not found.");
+            ?? throw new NotFoundException("Пользователь не найден.");
 
         return new MeDto(user.Id, user.DisplayName, user.VkUserId, user.Email, user.Rating);
     }
@@ -64,7 +64,7 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct)
     {
         if (!_stateStore.TryGet(state, out var verifier))
-            throw new ValidationException("Invalid or expired state.");
+            throw new ValidationException("Сессия авторизации истекла. Попробуйте ещё раз.");
 
         _stateStore.Remove(state);
 
@@ -75,7 +75,7 @@ public class AuthService : IAuthService
         var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
 
         var vkUserId = info?.UserId ?? token.UserId
-            ?? throw new ValidationException("VK ID did not return user_id.");
+            ?? throw new ValidationException("VK не вернул идентификатор пользователя.");
 
         var user = await _users.GetByVkUserIdAsync(vkUserId, ct);
         if (user is null)
@@ -98,17 +98,17 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> ExchangeVkIdCodeAsync(VkIdExchangeRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Code))
-            throw new ValidationException("code is required.");
+            throw new ValidationException("Не передан код авторизации.");
         if (string.IsNullOrWhiteSpace(req.CodeVerifier))
-            throw new ValidationException("codeVerifier is required.");
+            throw new ValidationException("Не передан codeVerifier.");
         if (string.IsNullOrWhiteSpace(req.DeviceId))
-            throw new ValidationException("deviceId is required.");
+            throw new ValidationException("Не передан deviceId.");
 
         var token = await _vk.ExchangeCodeAsync(req.Code, req.CodeVerifier, req.DeviceId, req.RedirectUri, ct);
         var info = await _vk.TryGetUserInfoAsync(token.AccessToken, ct);
 
         var vkUserId = info?.UserId ?? token.UserId
-            ?? throw new ValidationException("VK ID did not return user_id.");
+            ?? throw new ValidationException("VK не вернул идентификатор пользователя.");
 
         var user = await _users.GetByVkUserIdAsync(vkUserId, ct);
         if (user is null)
@@ -132,13 +132,13 @@ public class AuthService : IAuthService
     {
         var name = req.DisplayName?.Trim();
         if (string.IsNullOrWhiteSpace(name))
-            throw new ValidationException("Display name is required.");
+            throw new ValidationException("Укажите логин.");
         if (name.Length > 64)
-            throw new ValidationException("Display name must be 64 characters or less.");
+            throw new ValidationException("Логин — не более 64 символов.");
         _moderator.EnsureClean(name, "Имя");
 
         var user = await _users.GetByIdAsync(userId, ct)
-            ?? throw new NotFoundException("User not found.");
+            ?? throw new NotFoundException("Пользователь не найден.");
 
         user.DisplayName = name;
         _users.Update(user);

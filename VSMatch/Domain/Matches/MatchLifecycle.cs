@@ -12,7 +12,7 @@ public static class MatchLifecycle
     {
         if (current == next) return next;
         if (current is MatchStatus.Cancelled or MatchStatus.Completed)
-            throw new InvalidMatchStateException("Final match status cannot be changed.");
+            throw new InvalidMatchStateException("Финальный статус матча менять нельзя.");
 
         var allowed = current switch
         {
@@ -23,7 +23,7 @@ public static class MatchLifecycle
         };
 
         if (!allowed)
-            throw new InvalidMatchStateException($"Invalid status transition: {current} -> {next}.");
+            throw new InvalidMatchStateException($"Недопустимый переход статуса: {current} → {next}.");
 
         return next;
     }

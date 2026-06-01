@@ -8,6 +8,7 @@ import {
   fetchMyMatchHistory,
   joinMatch,
   joinMatchByInvite,
+  leaveMatch,
   submitMatchResult,
   updateMatch,
 } from './api/matches';
@@ -123,11 +124,10 @@ export default function App() {
     const events = new EventSource(`/api/matches/events?access_token=${encodeURIComponent(stored.token)}`);
     events.addEventListener('matches-changed', scheduleReload);
     events.onerror = () => {
+      // Никогда не выкидываем юзера в логин из-за SSE — это всего лишь live-обновления.
+      // EventSource сам попробует переподключиться; при стойком CLOSED просто отпускаем.
       if (events.readyState === EventSource.CLOSED) {
         events.close();
-        clearToken();
-        setMe(null);
-        setView('login');
       }
     };
     return () => {
@@ -251,6 +251,10 @@ export default function App() {
             }}
             onJoinMatch={async (match, team) => {
               await joinMatch(match.id, team);
+              await reloadCourtsAndMatches();
+            }}
+            onLeaveMatch={async (match) => {
+              await leaveMatch(match.id);
               await reloadCourtsAndMatches();
             }}
             onCancelMatch={async (match) => {

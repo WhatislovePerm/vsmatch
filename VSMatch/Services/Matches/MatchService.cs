@@ -63,13 +63,13 @@ public class MatchService : IMatchService
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
         var court = await _courts.GetByIdAsync(req.CourtId, ct)
-            ?? throw new NotFoundException("Court not found.");
+            ?? throw new NotFoundException("Площадка не найдена.");
 
         if (await _matches.HasActiveMatchForCourtAsync(req.CourtId, exceptMatchId: null, ct))
-            throw new ConflictException("Court already has an active match.");
+            throw new ConflictException("На этой площадке уже идёт матч.");
 
         if (await _matches.HasActiveMatchForUserAsync(userId, ct))
-            throw new ConflictException("You already have an active match. Finish or cancel it first.");
+            throw new ConflictException("У вас уже есть активный матч. Завершите или отмените его.");
 
         var match = new Match
         {
@@ -116,11 +116,11 @@ public class MatchService : IMatchService
         if (match is null) return null;
         EnsureCreator(match, userId);
         if (req.MaxPlayers < match.Players.Count)
-            throw new ValidationException("Max players cannot be less than current players count.");
+            throw new ValidationException("Нельзя поставить меньше игроков, чем уже в матче.");
 
         var oldCourtId = match.CourtId;
         var newCourt = await _courts.GetByIdAsync(req.CourtId, ct)
-            ?? throw new NotFoundException("Court not found.");
+            ?? throw new NotFoundException("Площадка не найдена.");
 
         match.CourtId = req.CourtId;
         match.Title = req.Title.Trim();
@@ -170,13 +170,13 @@ public class MatchService : IMatchService
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
         if (!MatchLifecycle.IsActive(match.Status))
-            throw new InvalidMatchStateException("Cannot join a completed or cancelled match.");
+            throw new InvalidMatchStateException("Нельзя войти в завершённый или отменённый матч.");
         if (match.Players.Any(p => p.UserId == userId))
             return MatchMapper.ToDto(match);
         if (await _matches.HasActiveMatchForUserAsync(userId, ct))
-            throw new ConflictException("You already have an active match. Finish, cancel, or leave it first.");
+            throw new ConflictException("У вас уже есть активный матч. Завершите, отмените или покиньте его.");
         if (match.Players.Count >= match.MaxPlayers)
-            throw new ConflictException("Match is full.");
+            throw new ConflictException("В матче нет свободных мест.");
 
         match.Players.Add(new MatchPlayer
         {
@@ -202,7 +202,7 @@ public class MatchService : IMatchService
         if (match is null) return null;
         EnsureCreator(match, userId);
         if (!MatchLifecycle.IsActive(match.Status))
-            throw new InvalidMatchStateException("Final match teams cannot be changed.");
+            throw new InvalidMatchStateException("Команды в финальном матче менять нельзя.");
 
         var players = match.Players
             .OrderBy(_ => Random.Shared.Next())
@@ -227,23 +227,23 @@ public class MatchService : IMatchService
         if (match is null) return null;
         EnsureCreator(match, userId);
         if (match.Status != MatchStatus.InProgress)
-            throw new InvalidMatchStateException("Only an active match can be completed with result.");
+            throw new InvalidMatchStateException("Записать счёт можно только в идущем матче.");
         if (req.TeamAScore < 0 || req.TeamBScore < 0)
-            throw new ValidationException("Score cannot be negative.");
+            throw new ValidationException("Счёт не может быть отрицательным.");
 
         if (req.Players.Select(p => p.UserId).Distinct().Count() != req.Players.Count)
-            throw new ValidationException("Duplicate player stats are not allowed.");
+            throw new ValidationException("Дублирование статистики игроков недопустимо.");
 
         var statsByUserId = req.Players.ToDictionary(p => p.UserId);
         if (statsByUserId.Count != match.Players.Count || match.Players.Any(p => !statsByUserId.ContainsKey(p.UserId)))
-            throw new ValidationException("Stats must be provided for every match player.");
+            throw new ValidationException("Заполните статистику для каждого игрока.");
         if (req.Players.Any(p => p.Goals < 0 || p.Assists < 0))
-            throw new ValidationException("Goals and assists cannot be negative.");
+            throw new ValidationException("Голы и пасы не могут быть отрицательными.");
 
         foreach (var player in match.Players)
         {
             if (player.User is null)
-                throw new InvalidOperationException("Match player user is missing.");
+                throw new InvalidOperationException("Игрок матча не найден.");
 
             var stats = statsByUserId[player.UserId];
             var delta = RatingCalculator.CalculateDelta(player.Team, req.TeamAScore, req.TeamBScore, stats.Goals, stats.Assists);
@@ -277,9 +277,9 @@ public class MatchService : IMatchService
         var match = await _matches.GetByIdAsync(id, ct);
         if (match is null) return null;
         if (match.Status == MatchStatus.InProgress)
-            throw new InvalidMatchStateException("Cannot leave a match that has already started.");
+            throw new InvalidMatchStateException("Нельзя выйти из начавшегося матча.");
         if (match.Status is MatchStatus.Completed or MatchStatus.Cancelled)
-            throw new InvalidMatchStateException("Cannot leave a final match.");
+            throw new InvalidMatchStateException("Нельзя выйти из завершённого матча.");
 
         var player = match.Players.FirstOrDefault(p => p.UserId == userId);
         if (player is null) return MatchMapper.ToDto(match);
@@ -318,7 +318,7 @@ public class MatchService : IMatchService
     private static void EnsureCreator(Match match, Guid userId)
     {
         if (match.CreatedByUserId != userId)
-            throw new ForbiddenException("Only match creator can do this.");
+            throw new ForbiddenException("Это может сделать только создатель матча.");
     }
 
     private async Task<string> GenerateInviteCodeAsync(CancellationToken ct)
@@ -335,6 +335,6 @@ public class MatchService : IMatchService
                 return code;
         }
 
-        throw new InvalidOperationException("Could not generate unique invite code.");
+        throw new InvalidOperationException("Не удалось сгенерировать ссылку-приглашение.");
     }
 }

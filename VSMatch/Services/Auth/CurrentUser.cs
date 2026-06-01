@@ -16,7 +16,7 @@ public class CurrentUser : ICurrentUser
         {
             var value = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(value, out var userId))
-                throw new ValidationException("Invalid user id in token.");
+                throw new ValidationException("Невалидный токен.");
 
             return userId;
         }

@@ -17,7 +17,7 @@ public static class MatchValidationRules
         if (string.IsNullOrWhiteSpace(name))
             return fallback;
         if (name.Length > 64)
-            throw new ValidationException("Team name must be 64 characters or less.");
+            throw new ValidationException("Название команды — не более 64 символов.");
         moderator.EnsureClean(name, fieldName);
         return name;
     }
@@ -32,11 +32,11 @@ public static class MatchValidationRules
         IContentModerator moderator)
     {
         if (string.IsNullOrWhiteSpace(title))
-            throw new ValidationException("Title is required.");
+            throw new ValidationException("Укажите название матча.");
         if (durationMinutes < 15 || durationMinutes > 240)
-            throw new ValidationException("Duration must be between 15 and 240 minutes.");
+            throw new ValidationException("Длительность — от 15 до 240 минут.");
         if (maxPlayers < 2 || maxPlayers > 50)
-            throw new ValidationException("Max players must be between 2 and 50.");
+            throw new ValidationException("Игроков — от 2 до 50.");
 
         moderator.EnsureClean(title, "Название");
         moderator.EnsureClean(description, "Описание");
