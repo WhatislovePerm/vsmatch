@@ -7,6 +7,10 @@ public class UserRepository : BaseRepository<User>, IUserRepository
 {
     public UserRepository(AppDbContext db) : base(db) { }
 
+    public Task<User?> GetProfileByIdAsync(Guid id, CancellationToken ct = default)
+        => Set.Include(u => u.Ratings)
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+
     public Task<User?> GetByVkUserIdAsync(string vkUserId, CancellationToken ct = default)
         => Set.FirstOrDefaultAsync(u => u.VkUserId == vkUserId, ct);
 }

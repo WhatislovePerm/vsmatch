@@ -55,7 +55,7 @@ public class AuthService : IAuthService
 
     public async Task<MeDto> GetMeAsync(Guid userId, CancellationToken ct = default)
     {
-        var user = await _users.GetByIdAsync(userId, ct)
+        var user = await _users.GetProfileByIdAsync(userId, ct)
             ?? throw new NotFoundException("Пользователь не найден.");
 
         // Включаем все спорты с default=1000 для тех, по которым ещё не играл.
