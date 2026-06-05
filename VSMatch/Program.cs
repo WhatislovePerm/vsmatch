@@ -41,6 +41,7 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 // Services
 builder.Services.AddScoped<ICourtService, CourtService>();
 builder.Services.AddHostedService<CourtAddressEnricher>();
+builder.Services.AddHostedService<OsmCourtImporter>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();
 builder.Services.AddSingleton<IContentModerator, RegexContentModerator>();
