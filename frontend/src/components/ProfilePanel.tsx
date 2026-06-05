@@ -4,6 +4,7 @@ import type { Me } from '../api/auth';
 import type { Match } from '../types';
 import { Button, IconButton, Input } from './ui';
 import { HistoryView } from './HistoryView';
+import { AdminFeedbackView } from './AdminFeedbackView';
 
 interface Props {
   me: Me;
@@ -67,6 +68,12 @@ export function ProfilePanel({ me, history, onClose, onSave }: Props) {
         <div className="p-6">
           <HistoryView matches={history} currentUserId={me.userId} />
         </div>
+
+        {me.isAdmin && (
+          <div className="px-6 pb-6 pt-2 border-t border-line">
+            <AdminFeedbackView />
+          </div>
+        )}
       </section>
     </div>
   );

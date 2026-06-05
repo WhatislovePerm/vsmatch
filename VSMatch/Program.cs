@@ -10,6 +10,7 @@ using VSMatch.Services.Auth;
 using VSMatch.Services.Courts;
 using VSMatch.Domain.Moderation;
 using VSMatch.Services.Matches;
+using VSMatch.Services.Feedback;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,8 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<ICourtService, CourtService>();
 builder.Services.AddHostedService<CourtAddressEnricher>();
 builder.Services.AddHostedService<OsmCourtImporter>();
+builder.Services.AddHostedService<AdminBootstrapper>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();
 builder.Services.AddSingleton<IContentModerator, RegexContentModerator>();

@@ -4,7 +4,8 @@ import maplibregl, {
   type Marker as MlMarker,
   type StyleSpecification,
 } from 'maplibre-gl';
-import type { Court } from '../types';
+import type { Court, SportKind } from '../types';
+import { SPORTS } from '../types';
 
 interface Props {
   courts: Court[];
@@ -123,6 +124,7 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
         const entry = existing.get(c.id);
         if (entry) {
           entry.el.className = markerClass(c, c.id === selectedId);
+          entry.el.textContent = sportEmoji(c.sport);
           continue;
         }
 
@@ -132,7 +134,7 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
         wrapper.className = 'court-marker-wrapper';
         const visual = document.createElement('div');
         visual.className = markerClass(c, c.id === selectedId);
-        visual.textContent = '⚽';
+        visual.textContent = sportEmoji(c.sport);
         wrapper.appendChild(visual);
 
         wrapper.addEventListener('click', (e) => {
@@ -177,4 +179,8 @@ function markerClass(c: Court, active: boolean): string {
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+function sportEmoji(sport: SportKind): string {
+  return SPORTS.find((s) => s.kind === sport)?.emoji ?? '⚽';
 }

@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<UserRating> UserRatings => Set<UserRating>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<MatchPlayer> MatchPlayers => Set<MatchPlayer>();
+    public DbSet<Feedback> Feedbacks => Set<Feedback>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -90,6 +91,22 @@ public class AppDbContext : DbContext
 
             e.HasOne(x => x.User)
                 .WithMany(x => x.MatchPlayers)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Feedback>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Message).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.Reply).HasMaxLength(2000);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).HasDefaultValue(FeedbackStatus.New);
+
+            e.HasOne(x => x.User)
+                .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

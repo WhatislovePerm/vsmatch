@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { HelpCircle, LogOut } from 'lucide-react';
 import { fetchCourts } from './api/courts';
 import {
   createMatch,
@@ -21,6 +21,7 @@ import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
 import { Badge, Button, IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
 import { SportSwitcher } from './components/SportSwitcher';
+import { FeedbackModal } from './components/FeedbackModal';
 import { useSport } from './sport/SportContext';
 import type { Court, Match, MatchTeam, SubmitMatchResultRequest } from './types';
 
@@ -51,6 +52,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [pendingInviteMatch, setPendingInviteMatch] = useState<Match | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const loadHistorySafely = useCallback(async () => {
     try {
@@ -257,6 +259,9 @@ export default function App() {
                   </IconButton>
                 </>
               )}
+              <IconButton onClick={() => setFeedbackOpen(true)} aria-label="Обратная связь" variant="subtle">
+                <HelpCircle size={16} />
+              </IconButton>
               <IconButton onClick={handleLogout} aria-label="Выйти" variant="subtle">
                 <LogOut size={16} />
               </IconButton>
@@ -335,6 +340,9 @@ export default function App() {
               await reloadCourtsAndMatches();
             }}
           />
+        )}
+        {feedbackOpen && (
+          <FeedbackModal onClose={() => setFeedbackOpen(false)} />
         )}
         {pendingInviteMatch && (
           <InviteJoinPanel
