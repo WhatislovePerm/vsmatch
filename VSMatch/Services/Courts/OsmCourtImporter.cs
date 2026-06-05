@@ -51,37 +51,23 @@ public class OsmCourtImporter : BackgroundService
         try { await Task.Delay(TimeSpan.FromSeconds(15), ct); }
         catch (OperationCanceledException) { return; }
 
-        bool hasBasketball;
-        bool hasTableTennis;
-        using (var scope = _services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            hasBasketball  = await db.Courts.AnyAsync(c => c.SportKind == SportKind.Basketball,  ct);
-            hasTableTennis = await db.Courts.AnyAsync(c => c.SportKind == SportKind.TableTennis, ct);
-        }
-
-        if (hasBasketball && hasTableTennis)
-        {
-            _log.LogInformation("OsmCourtImporter: все спорты уже импортированы — нечего делать.");
-            return;
-        }
-
+        // Импортёр полностью идемпотент: внутри ImportAsync дедуп по OsmId.
+        // Раньше тут был early-return по hasAny, но если предыдущая попытка
+        // сорвалась после получения данных — мы зря бы пропустили заход.
         var http = _httpFactory.CreateClient();
         http.DefaultRequestHeaders.UserAgent.ParseAdd("VSMatch/1.0 (+https://vsmatch.ru)");
         http.Timeout = TimeSpan.FromMinutes(3);
 
-        if (!hasBasketball)
         {
-            var added = await ImportAsync(http, SportKind.Basketball,
+            var (added, skipped) = await ImportAsync(http, SportKind.Basketball,
                 BuildAreaQuery("basketball", areaName: "Москва", adminLevel: "4"), ct);
-            _log.LogInformation("OsmCourtImporter: добавлено баскетбольных площадок: {Added}", added);
+            _log.LogInformation("OsmCourtImporter [Basketball]: добавлено {Added}, дубликатов пропущено {Skipped}", added, skipped);
         }
 
-        if (!hasTableTennis)
         {
-            var added = await ImportAsync(http, SportKind.TableTennis,
+            var (added, skipped) = await ImportAsync(http, SportKind.TableTennis,
                 BuildAreaQuery("table_tennis", areaName: "Северный административный округ", adminLevel: "5"), ct);
-            _log.LogInformation("OsmCourtImporter: добавлено столов для тенниса: {Added}", added);
+            _log.LogInformation("OsmCourtImporter [TableTennis]: добавлено {Added}, дубликатов пропущено {Skipped}", added, skipped);
         }
     }
 
@@ -105,7 +91,7 @@ public class OsmCourtImporter : BackgroundService
         ";
     }
 
-    private async Task<int> ImportAsync(HttpClient http, SportKind sport, string query, CancellationToken ct)
+    private async Task<(int added, int skipped)> ImportAsync(HttpClient http, SportKind sport, string query, CancellationToken ct)
     {
         OverpassResponse? doc;
         try
@@ -116,7 +102,7 @@ public class OsmCourtImporter : BackgroundService
             {
                 var body = await resp.Content.ReadAsStringAsync(ct);
                 _log.LogWarning("Overpass {Status} для {Sport}: {Body}", resp.StatusCode, sport, Truncate(body, 500));
-                return 0;
+                return (0, 0);
             }
 
             doc = await resp.Content.ReadFromJsonAsync<OverpassResponse>(cancellationToken: ct);
@@ -124,13 +110,13 @@ public class OsmCourtImporter : BackgroundService
         catch (Exception ex)
         {
             _log.LogError(ex, "Overpass request failed for {Sport}", sport);
-            return 0;
+            return (0, 0);
         }
 
         if (doc?.Elements is null || doc.Elements.Length == 0)
         {
             _log.LogWarning("OsmCourtImporter: пустой ответ Overpass для {Sport}", sport);
-            return 0;
+            return (0, 0);
         }
 
         _log.LogInformation("OsmCourtImporter: Overpass вернул {Count} объектов для {Sport}", doc.Elements.Length, sport);
@@ -143,9 +129,13 @@ public class OsmCourtImporter : BackgroundService
             .ToListAsync(ct)).ToHashSet();
 
         var added = 0;
+        var skippedDup = 0;
+        const int BatchSize = 200;
+        var batch = new List<Court>(BatchSize);
+
         foreach (var el in doc.Elements)
         {
-            if (existingOsmIds.Contains(el.Id)) continue;
+            if (existingOsmIds.Contains(el.Id)) { skippedDup++; continue; }
 
             var (lat, lon) = ExtractCoords(el);
             if (lat is null || lon is null) continue;
@@ -155,7 +145,7 @@ public class OsmCourtImporter : BackgroundService
             if (access is "private" or "permit" or "no" or "customers") continue;
 
             var name = GetTag(el, "name");
-            var court = new Court
+            batch.Add(new Court
             {
                 Id = Guid.NewGuid(),
                 OsmId = el.Id,
@@ -167,16 +157,56 @@ public class OsmCourtImporter : BackgroundService
                 Lon = lon.Value,
                 IsFree = true,
                 CreatedAt = DateTime.UtcNow,
-            };
-            db.Courts.Add(court);
+            });
             existingOsmIds.Add(el.Id);
-            added++;
+
+            if (batch.Count >= BatchSize)
+            {
+                added += await FlushBatchAsync(db, batch, ct);
+                batch.Clear();
+            }
         }
 
-        if (added > 0)
-            await db.SaveChangesAsync(ct);
+        if (batch.Count > 0)
+            added += await FlushBatchAsync(db, batch, ct);
 
-        return added;
+        return (added, skippedDup);
+    }
+
+    /// <summary>
+    /// Сохраняем пачку. Если упадёт DbUpdate (например коллизия по OsmId которой не было в нашем
+    /// snapshot — между чтением и записью кто-то ещё мог добавить), пробуем по одной.
+    /// </summary>
+    private async Task<int> FlushBatchAsync(AppDbContext db, List<Court> batch, CancellationToken ct)
+    {
+        db.Courts.AddRange(batch);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return batch.Count;
+        }
+        catch (DbUpdateException)
+        {
+            // Откатим трекинг и пробуем по одной — выживут все, кроме конкретного нарушителя.
+            foreach (var c in batch) db.Entry(c).State = EntityState.Detached;
+
+            var ok = 0;
+            foreach (var c in batch)
+            {
+                try
+                {
+                    db.Courts.Add(c);
+                    await db.SaveChangesAsync(ct);
+                    ok++;
+                }
+                catch (DbUpdateException ex)
+                {
+                    db.Entry(c).State = EntityState.Detached;
+                    _log.LogWarning("Пропуск корта osm_id={OsmId}: {Reason}", c.OsmId, ex.InnerException?.Message ?? ex.Message);
+                }
+            }
+            return ok;
+        }
     }
 
     private static (double? lat, double? lon) ExtractCoords(OverpassElement el)
