@@ -7,4 +7,5 @@ public interface ICourtService
 {
     Task<IReadOnlyList<CourtDto>> GetAllAsync(SportKind sport, CancellationToken ct = default);
     Task<CourtDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<TopPlayerDto>> GetTopPlayersAsync(Guid courtId, SportKind sport, int top = 3, CancellationToken ct = default);
 }

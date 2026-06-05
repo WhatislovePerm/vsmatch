@@ -27,4 +27,11 @@ public class CourtsController : ControllerBase
         var court = await _courts.GetByIdAsync(id, ct);
         return court is null ? NotFound() : Ok(court);
     }
+
+    [HttpGet("{id:guid}/top-players")]
+    public async Task<ActionResult<IReadOnlyList<TopPlayerDto>>> GetTopPlayers(
+        Guid id,
+        [FromQuery] SportKind? sport,
+        CancellationToken ct)
+        => Ok(await _courts.GetTopPlayersAsync(id, sport ?? SportCatalog.DefaultSport, top: 3, ct));
 }

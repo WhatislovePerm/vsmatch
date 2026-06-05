@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import type { Court, Match, MatchPlayer, MatchTeam, SubmitMatchResultRequest } from '../types';
 import { Badge, Button, IconButton, Input, NumberInput } from './ui';
+import { CourtTopPlayers } from './CourtTopPlayers';
+import { RatingBadge } from './RatingBadge';
 
 interface Props {
   court: Court;
@@ -126,6 +128,9 @@ export function CourtCard({
             {court.description}
           </p>
         )}
+
+        {/* Топ игроков */}
+        <CourtTopPlayers courtId={court.id} sport={court.sport} />
 
         {/* Матчи */}
         <section className="mt-5 pt-5 border-t border-line">
@@ -354,7 +359,7 @@ function PlayersList({
         <div key={p.userId} className="text-[12.5px] text-ink-2 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="truncate">{p.displayName}</span>
-            <span className="shrink-0 text-muted tabular-nums">{Math.round(p.rating)}</span>
+            <RatingBadge rating={p.rating} size="sm" showLabel={false} className="shrink-0" />
           </div>
           {showStats && (
             <div className="mt-0.5 text-[11px] text-muted tabular-nums">

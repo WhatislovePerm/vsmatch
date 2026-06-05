@@ -6,3 +6,16 @@ export async function fetchCourts(sport: SportKind): Promise<Court[]> {
   if (!res.ok) await throwApiError(res, 'Не удалось загрузить площадки');
   return res.json();
 }
+
+export interface TopPlayer {
+  userId: string;
+  displayName: string;
+  rating: number;
+  matchCount: number;
+}
+
+export async function fetchTopPlayers(courtId: string, sport: SportKind): Promise<TopPlayer[]> {
+  const res = await authFetch(`/api/courts/${courtId}/top-players?sport=${encodeURIComponent(sport)}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось загрузить топ игроков');
+  return res.json();
+}

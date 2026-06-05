@@ -18,10 +18,11 @@ import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
-import { Badge, Button, IconButton } from './components/ui';
+import { Button, IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
 import { SportSwitcher } from './components/SportSwitcher';
 import { FeedbackModal } from './components/FeedbackModal';
+import { RatingBadge } from './components/RatingBadge';
 import { useSport } from './sport/SportContext';
 import type { Court, Match, MatchTeam, SubmitMatchResultRequest } from './types';
 
@@ -229,9 +230,10 @@ export default function App() {
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <SportSwitcher />
               {me && (
-                <Badge tone="info" className="shrink-0 whitespace-nowrap">
-                  Рейтинг: {Math.round(me.ratings?.[sport] ?? 1000)}
-                </Badge>
+                <RatingBadge
+                  rating={me.ratings?.[sport] ?? 1000}
+                  className="shrink-0"
+                />
               )}
               {me && (
                 <>
