@@ -1,3 +1,5 @@
+using VSMatch.Domain.Sports;
+
 namespace VSMatch.Dtos.Auth;
 
 public record MeDto(
@@ -5,5 +7,6 @@ public record MeDto(
     string Name,
     string VkUserId,
     string? Email,
-    double Rating
+    bool IsAdmin,
+    IReadOnlyDictionary<SportKind, double> Ratings
 );

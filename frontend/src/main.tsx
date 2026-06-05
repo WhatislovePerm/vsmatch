@@ -4,9 +4,12 @@ import App from './App';
 import '@fontsource-variable/inter';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
+import { SportProvider } from './sport/SportContext';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <SportProvider>
+      <App />
+    </SportProvider>
   </React.StrictMode>
 );

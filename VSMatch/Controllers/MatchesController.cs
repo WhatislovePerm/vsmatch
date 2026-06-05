@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VSMatch.Data.Entities;
 using VSMatch.Domain;
+using VSMatch.Domain.Sports;
 using VSMatch.Dtos.Matches;
 using VSMatch.Services.Auth;
 using VSMatch.Services.Matches;
@@ -27,18 +28,20 @@ public class MatchesController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetAll(
+        [FromQuery] SportKind? sport,
         [FromQuery] Guid? courtId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100,
         CancellationToken ct = default)
-        => Ok(await _matches.GetAllAsync(courtId, page, pageSize, ct));
+        => Ok(await _matches.GetAllAsync(sport, courtId, page, pageSize, ct));
 
     [HttpGet("me/history")]
     public async Task<ActionResult<IReadOnlyList<MatchDto>>> GetMyHistory(
+        [FromQuery] SportKind? sport,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         CancellationToken ct = default)
-        => Ok(await _matches.GetHistoryByUserAsync(_currentUser.Id, page, pageSize, ct));
+        => Ok(await _matches.GetHistoryByUserAsync(_currentUser.Id, sport, page, pageSize, ct));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<MatchDto>> GetById(Guid id, CancellationToken ct)

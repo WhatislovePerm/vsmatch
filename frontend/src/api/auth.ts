@@ -1,12 +1,14 @@
 import { authFetch } from './client';
 import { saveToken } from '../auth/storage';
+import type { SportKind } from '../types';
 
 export interface Me {
   userId: string;
   name: string;
   vkUserId: string;
   email: string | null;
-  rating: number;
+  isAdmin: boolean;
+  ratings: Record<SportKind, number>;
 }
 
 interface AuthResponse {

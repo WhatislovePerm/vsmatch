@@ -5,6 +5,7 @@ using VSMatch.Data.Repositories;
 using VSMatch.Domain;
 using VSMatch.Domain.Matches;
 using VSMatch.Domain.Moderation;
+using VSMatch.Domain.Sports;
 using VSMatch.Dtos.Matches;
 using VSMatch.Mapping;
 
@@ -27,18 +28,25 @@ public class MatchService : IMatchService
         _moderator = moderator;
     }
 
-    public async Task<IReadOnlyList<MatchDto>> GetAllAsync(Guid? courtId = null, int page = 1, int pageSize = 100, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MatchDto>> GetAllAsync(SportKind? sport = null, Guid? courtId = null, int page = 1, int pageSize = 100, CancellationToken ct = default)
     {
-        var matches = courtId.HasValue
-            ? await _matches.ListByCourtAsync(courtId.Value, page, pageSize, ct)
-            : await _matches.ListPagedAsync(page, pageSize, ct);
+        IReadOnlyList<Match> matches;
+        if (courtId.HasValue)
+        {
+            matches = await _matches.ListByCourtAsync(courtId.Value, page, pageSize, ct);
+            if (sport.HasValue) matches = matches.Where(m => m.Sport == sport.Value).ToList();
+        }
+        else
+        {
+            matches = await _matches.ListPagedAsync(sport, page, pageSize, ct);
+        }
 
         return matches.Select(MatchMapper.ToDto).ToList();
     }
 
-    public async Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, int page = 1, int pageSize = 50, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, SportKind? sport = null, int page = 1, int pageSize = 50, CancellationToken ct = default)
     {
-        var matches = await _matches.ListHistoryByUserAsync(userId, page, pageSize, ct);
+        var matches = await _matches.ListHistoryByUserAsync(userId, sport, page, pageSize, ct);
         return matches.Select(MatchMapper.ToDto).ToList();
     }
 
@@ -76,6 +84,7 @@ public class MatchService : IMatchService
             Id = Guid.NewGuid(),
             CourtId = req.CourtId,
             CreatedByUserId = userId,
+            Sport = court.SportKind,
             InviteCode = await GenerateInviteCodeAsync(ct),
             Title = req.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
@@ -251,7 +260,21 @@ public class MatchService : IMatchService
             player.Goals = stats.Goals;
             player.Assists = stats.Assists;
             player.RatingDelta = delta;
-            player.User.Rating = Math.Max(0, player.User.Rating + delta);
+
+            // Рейтинг по конкретному спорту: создаём UserRating если ещё нет.
+            var sportRating = player.User.Ratings.FirstOrDefault(r => r.Sport == match.Sport);
+            if (sportRating is null)
+            {
+                sportRating = new UserRating
+                {
+                    UserId = player.UserId,
+                    Sport = match.Sport,
+                    Rating = 1000,
+                };
+                player.User.Ratings.Add(sportRating);
+                _db.UserRatings.Add(sportRating);
+            }
+            sportRating.Rating = Math.Max(0, sportRating.Rating + delta);
         }
 
         match.TeamAScore = req.TeamAScore;

@@ -58,7 +58,12 @@ public class AuthService : IAuthService
         var user = await _users.GetByIdAsync(userId, ct)
             ?? throw new NotFoundException("Пользователь не найден.");
 
-        return new MeDto(user.Id, user.DisplayName, user.VkUserId, user.Email, user.Rating);
+        // Включаем все спорты с default=1000 для тех, по которым ещё не играл.
+        var ratings = Domain.Sports.SportCatalog.All.Keys.ToDictionary(
+            sport => sport,
+            sport => user.Ratings.FirstOrDefault(r => r.Sport == sport)?.Rating ?? 1000);
+
+        return new MeDto(user.Id, user.DisplayName, user.VkUserId, user.Email, user.IsAdmin, ratings);
     }
 
     public async Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct)

@@ -1,3 +1,5 @@
+using VSMatch.Domain.Sports;
+
 namespace VSMatch.Data.Entities;
 
 public class Match
@@ -5,6 +7,7 @@ public class Match
     public Guid Id { get; set; }
     public Guid CourtId { get; set; }
     public Guid CreatedByUserId { get; set; }
+    public SportKind Sport { get; set; } = SportKind.Football;
     public string InviteCode { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }

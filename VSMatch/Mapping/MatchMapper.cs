@@ -11,6 +11,7 @@ public static class MatchMapper
             m.CourtId,
             m.Court?.Name ?? string.Empty,
             m.CreatedByUserId,
+            m.Sport,
             m.InviteCode,
             $"/matches/join/{m.InviteCode}",
             m.Title,
@@ -29,7 +30,7 @@ public static class MatchMapper
                     p.Team,
                     p.Goals,
                     p.Assists,
-                    p.User?.Rating ?? 1000,
+                    GetSportRating(p.User, m.Sport),
                     p.RatingDelta,
                     p.JoinedAt))
                 .ToList(),
@@ -39,4 +40,11 @@ public static class MatchMapper
             m.ResultSubmittedAt,
             m.CreatedAt,
             m.UpdatedAt);
+
+    private static double GetSportRating(User? user, Domain.Sports.SportKind sport)
+    {
+        if (user is null) return 1000;
+        var found = user.Ratings.FirstOrDefault(r => r.Sport == sport);
+        return found?.Rating ?? 1000;
+    }
 }

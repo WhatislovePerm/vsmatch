@@ -1,12 +1,13 @@
 using VSMatch.Dtos.Matches;
 using VSMatch.Data.Entities;
+using VSMatch.Domain.Sports;
 
 namespace VSMatch.Services.Matches;
 
 public interface IMatchService
 {
-    Task<IReadOnlyList<MatchDto>> GetAllAsync(Guid? courtId = null, int page = 1, int pageSize = 100, CancellationToken ct = default);
-    Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, int page = 1, int pageSize = 50, CancellationToken ct = default);
+    Task<IReadOnlyList<MatchDto>> GetAllAsync(SportKind? sport = null, Guid? courtId = null, int page = 1, int pageSize = 100, CancellationToken ct = default);
+    Task<IReadOnlyList<MatchDto>> GetHistoryByUserAsync(Guid userId, SportKind? sport = null, int page = 1, int pageSize = 50, CancellationToken ct = default);
     Task<MatchDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<MatchDto?> GetByInviteCodeAsync(string inviteCode, CancellationToken ct = default);
     Task<MatchDto> CreateAsync(CreateMatchRequest req, Guid userId, CancellationToken ct = default);

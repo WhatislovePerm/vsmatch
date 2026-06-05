@@ -1,3 +1,5 @@
+using VSMatch.Domain.Sports;
+
 namespace VSMatch.Dtos.Courts;
 
 public record CourtDto(
@@ -7,7 +9,7 @@ public record CourtDto(
     string? Description,
     double Lat,
     double Lon,
-    string? Sport,
+    SportKind Sport,
     string? Surface,
     double? Rating,
     bool IsFree

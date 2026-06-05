@@ -1,15 +1,16 @@
-import type { CreateMatchRequest, Match, MatchTeam, SubmitMatchResultRequest, UpdateMatchRequest } from '../types';
+import type { CreateMatchRequest, Match, MatchTeam, SportKind, SubmitMatchResultRequest, UpdateMatchRequest } from '../types';
 import { authFetch, throwApiError } from './client';
 
-export async function fetchMatches(courtId?: string): Promise<Match[]> {
-  const qs = courtId ? `?courtId=${encodeURIComponent(courtId)}` : '';
-  const res = await authFetch(`/api/matches${qs}`);
+export async function fetchMatches(sport: SportKind, courtId?: string): Promise<Match[]> {
+  const params = new URLSearchParams({ sport });
+  if (courtId) params.set('courtId', courtId);
+  const res = await authFetch(`/api/matches?${params.toString()}`);
   if (!res.ok) await throwApiError(res, 'Не удалось загрузить матчи');
   return res.json();
 }
 
-export async function fetchMyMatchHistory(): Promise<Match[]> {
-  const res = await authFetch('/api/matches/me/history');
+export async function fetchMyMatchHistory(sport: SportKind): Promise<Match[]> {
+  const res = await authFetch(`/api/matches/me/history?sport=${encodeURIComponent(sport)}`);
   if (!res.ok) await throwApiError(res, 'Не удалось загрузить историю');
   return res.json();
 }

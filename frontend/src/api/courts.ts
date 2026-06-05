@@ -1,8 +1,8 @@
-import type { Court } from '../types';
-import { authFetch } from './client';
+import type { Court, SportKind } from '../types';
+import { authFetch, throwApiError } from './client';
 
-export async function fetchCourts(): Promise<Court[]> {
-  const res = await authFetch('/api/courts');
-  if (!res.ok) throw new Error(`Failed to load courts: ${res.status}`);
+export async function fetchCourts(sport: SportKind): Promise<Court[]> {
+  const res = await authFetch(`/api/courts?sport=${encodeURIComponent(sport)}`);
+  if (!res.ok) await throwApiError(res, 'Не удалось загрузить площадки');
   return res.json();
 }

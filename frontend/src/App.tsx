@@ -20,6 +20,8 @@ import { Login } from './components/Login';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
 import { Badge, Button, IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
+import { SportSwitcher } from './components/SportSwitcher';
+import { useSport } from './sport/SportContext';
 import type { Court, Match, MatchTeam, SubmitMatchResultRequest } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
@@ -38,6 +40,7 @@ function getInviteCodeFromPath(): string | null {
 }
 
 export default function App() {
+  const { sport } = useSport();
   const [view, setView] = useState<View>(detectInitialView);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
@@ -51,22 +54,22 @@ export default function App() {
 
   const loadHistorySafely = useCallback(async () => {
     try {
-      return await fetchMyMatchHistory();
+      return await fetchMyMatchHistory(sport);
     } catch {
       return [];
     }
-  }, []);
+  }, [sport]);
 
   const reloadCourtsAndMatches = useCallback(async () => {
     const [courtsRes, matchesRes] = await Promise.all([
-      fetchCourts(),
-      fetchMatches(),
+      fetchCourts(sport),
+      fetchMatches(sport),
     ]);
     setCourts(courtsRes);
     setMatches(matchesRes);
     const historyRes = await loadHistorySafely();
     setMyMatchHistory(historyRes);
-  }, [loadHistorySafely]);
+  }, [loadHistorySafely, sport]);
 
   const loadUserAndCourts = useCallback(async () => {
     // Шаг 1: проверка авторизации. Только её провал валит сессию.
@@ -84,7 +87,7 @@ export default function App() {
     // Шаг 2: данные приложения. Ошибки тут НЕ должны логаутить юзера.
     let courtsRes: Court[] = [];
     try {
-      const [c, m] = await Promise.all([fetchCourts(), fetchMatches()]);
+      const [c, m] = await Promise.all([fetchCourts(sport), fetchMatches(sport)]);
       courtsRes = c;
       setCourts(c);
       setMatches(m);
@@ -115,17 +118,25 @@ export default function App() {
     }
 
     setView('app');
-  }, [loadHistorySafely]);
+  }, [loadHistorySafely, sport]);
 
   useEffect(() => {
     if (!selected) return;
     const nextSelected = courts.find((court) => court.id === selected.id);
     if (nextSelected) setSelected(nextSelected);
+    else setSelected(null);   // если переключили спорт — площадка стала недоступной
   }, [courts, selected]);
 
   useEffect(() => {
     if (view === 'loading') loadUserAndCourts();
   }, [view, loadUserAndCourts]);
+
+  // При смене спорта перезагружаем данные (и сбрасываем выбранную площадку).
+  useEffect(() => {
+    if (view !== 'app') return;
+    setSelected(null);
+    reloadCourtsAndMatches().catch(() => undefined);
+  }, [sport, view, reloadCourtsAndMatches]);
 
   useEffect(() => {
     if (view !== 'app') return;
@@ -214,9 +225,10 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <SportSwitcher />
               {me && (
                 <Badge tone="info" className="shrink-0 whitespace-nowrap">
-                  Рейтинг: {Math.round(me.rating)} 
+                  Рейтинг: {Math.round(me.ratings?.[sport] ?? 1000)}
                 </Badge>
               )}
               {me && (

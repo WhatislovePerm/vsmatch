@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VSMatch.Domain.Sports;
 using VSMatch.Dtos.Courts;
 using VSMatch.Services.Courts;
 
@@ -15,8 +16,10 @@ public class CourtsController : ControllerBase
     public CourtsController(ICourtService courts) => _courts = courts;
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<CourtDto>>> GetAll(CancellationToken ct)
-        => Ok(await _courts.GetAllAsync(ct));
+    public async Task<ActionResult<IReadOnlyList<CourtDto>>> GetAll(
+        [FromQuery] SportKind? sport,
+        CancellationToken ct)
+        => Ok(await _courts.GetAllAsync(sport ?? SportCatalog.DefaultSport, ct));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CourtDto>> GetById(Guid id, CancellationToken ct)

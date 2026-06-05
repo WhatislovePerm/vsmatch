@@ -1,3 +1,19 @@
+export type SportKind = 'Football' | 'Basketball' | 'TableTennis';
+
+export interface SportConfig {
+  kind: SportKind;
+  label: string;
+  emoji: string;
+}
+
+export const SPORTS: SportConfig[] = [
+  { kind: 'Football',    label: 'Футбол',    emoji: '⚽' },
+  { kind: 'Basketball',  label: 'Баскетбол', emoji: '🏀' },
+  { kind: 'TableTennis', label: 'Теннис',    emoji: '🏓' },
+];
+
+export const DEFAULT_SPORT: SportKind = 'Football';
+
 export interface Court {
   id: string;
   name: string;
@@ -5,7 +21,7 @@ export interface Court {
   description: string | null;
   lat: number;
   lon: number;
-  sport: string | null;
+  sport: SportKind;
   surface: string | null;
   rating: number | null;
   isFree: boolean;
@@ -19,6 +35,7 @@ export interface Match {
   courtId: string;
   courtName: string;
   createdByUserId: string;
+  sport: SportKind;
   inviteCode: string;
   inviteUrl: string;
   title: string;

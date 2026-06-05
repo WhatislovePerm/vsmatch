@@ -1,3 +1,5 @@
+using VSMatch.Domain.Sports;
+
 namespace VSMatch.Data.Entities;
 
 public class Court
@@ -9,7 +11,8 @@ public class Court
     public string? Description { get; set; }
     public double Lat { get; set; }
     public double Lon { get; set; }
-    public string? Sport { get; set; }
+    public SportKind SportKind { get; set; } = SportKind.Football;
+    public string? Sport { get; set; }            // legacy OSM-тег, оставлен для миграции
     public string? Surface { get; set; }
     public double? Rating { get; set; }
     public bool IsFree { get; set; } = true;

@@ -1,4 +1,5 @@
 using VSMatch.Data.Entities;
+using VSMatch.Domain.Sports;
 
 namespace VSMatch.Dtos.Matches;
 
@@ -7,6 +8,7 @@ public record MatchDto(
     Guid CourtId,
     string CourtName,
     Guid CreatedByUserId,
+    SportKind Sport,
     string InviteCode,
     string InviteUrl,
     string Title,
