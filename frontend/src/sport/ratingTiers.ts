@@ -1,112 +1,26 @@
 export interface RatingTier {
   key: string;
   label: string;
-  emoji: string;
-  /** background + text + ring (Tailwind/inline-friendly). */
-  className: string;
+  /** Базовый цвет плитки из дизайн-макета. */
+  base: string;
+  /** Цвет текста поверх плитки. */
+  text: string;
+  /** Плоская заливка без глянца (только «Новичок»). */
+  flat?: boolean;
 }
 
+/** Тиры и цвета — из Figma-макета (плитки 200×200, rx 20). */
 const TIERS: Array<{ min: number; tier: RatingTier }> = [
-  {
-    min: 0,
-    tier: {
-      key: 'rookie',
-      label: 'Новичок',
-      emoji: '🥚',
-      className:
-        'bg-gradient-to-r from-slate-200 to-slate-300 text-slate-700 border border-slate-300',
-    },
-  },
-  {
-    min: 700,
-    tier: {
-      key: 'bronze',
-      label: 'Бронза',
-      emoji: '🥉',
-      className:
-        'bg-gradient-to-r from-amber-200 to-orange-300 text-orange-900 border border-orange-300',
-    },
-  },
-  {
-    min: 850,
-    tier: {
-      key: 'silver',
-      label: 'Серебро',
-      emoji: '🥈',
-      className:
-        'bg-gradient-to-r from-slate-100 to-slate-300 text-slate-700 border border-slate-400',
-    },
-  },
-  {
-    min: 950,
-    tier: {
-      key: 'gold',
-      label: 'Золото',
-      emoji: '🥇',
-      className:
-        'bg-gradient-to-r from-yellow-200 to-amber-400 text-yellow-900 border border-amber-400',
-    },
-  },
-  {
-    min: 1050,
-    tier: {
-      key: 'platinum',
-      label: 'Платина',
-      emoji: '💠',
-      className:
-        'bg-gradient-to-r from-cyan-100 to-sky-300 text-sky-900 border border-sky-400',
-    },
-  },
-  {
-    min: 1200,
-    tier: {
-      key: 'diamond',
-      label: 'Алмаз',
-      emoji: '💎',
-      className:
-        'bg-gradient-to-r from-cyan-200 via-sky-300 to-indigo-300 text-indigo-900 border border-indigo-400',
-    },
-  },
-  {
-    min: 1400,
-    tier: {
-      key: 'master',
-      label: 'Мастер',
-      emoji: '🛡️',
-      className:
-        'bg-gradient-to-r from-violet-300 to-purple-400 text-white border border-purple-500 shadow-[0_2px_10px_-2px_rgba(168,85,247,0.4)]',
-    },
-  },
-  {
-    min: 1600,
-    tier: {
-      key: 'champion',
-      label: 'Чемпион',
-      emoji: '👑',
-      className:
-        'bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white border border-fuchsia-500 shadow-[0_2px_14px_-2px_rgba(217,70,239,0.5)]',
-    },
-  },
-  {
-    min: 1850,
-    tier: {
-      key: 'grandmaster',
-      label: 'Гроссмейстер',
-      emoji: '🏆',
-      className:
-        'bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 text-white border border-amber-400 shadow-[0_2px_16px_-2px_rgba(244,63,94,0.55)]',
-    },
-  },
-  {
-    min: 2100,
-    tier: {
-      key: 'legend',
-      label: 'Легенда',
-      emoji: '🔥',
-      className:
-        'bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 text-white border border-yellow-300 shadow-[0_2px_18px_-2px_rgba(220,38,38,0.6)]',
-    },
-  },
+  { min: 0,    tier: { key: 'rookie',      label: 'Новичок',     base: '#1F2C41', text: '#FFFFFF', flat: true } },
+  { min: 700,  tier: { key: 'bronze',      label: 'Бронза',      base: '#D09742', text: '#3A2A0E' } },
+  { min: 850,  tier: { key: 'silver',      label: 'Серебро',     base: '#CDC9C2', text: '#3D3A35' } },
+  { min: 950,  tier: { key: 'gold',        label: 'Золото',      base: '#C1A875', text: '#3A2F1A' } },
+  { min: 1050, tier: { key: 'platinum',    label: 'Платина',     base: '#73BAE1', text: '#11364C' } },
+  { min: 1200, tier: { key: 'emerald',     label: 'Изумруд',     base: '#75C062', text: '#15330E' } },
+  { min: 1400, tier: { key: 'champion',    label: 'Чемпион',     base: '#4542AF', text: '#FFFFFF' } },
+  { min: 1600, tier: { key: 'master',      label: 'Мастер',      base: '#7F42AF', text: '#FFFFFF' } },
+  { min: 1850, tier: { key: 'grandmaster', label: 'Грандмастер', base: '#C133B3', text: '#FFFFFF' } },
+  { min: 2100, tier: { key: 'legend',      label: 'Легенда',     base: '#C95C5C', text: '#FFFFFF' } },
 ];
 
 export function getRatingTier(rating: number): RatingTier {

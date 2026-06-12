@@ -16,8 +16,9 @@ interface AuthResponse {
   expiresAt: string;
 }
 
-export async function getAuthorizeUrl(): Promise<string> {
-  const res = await fetch('/api/auth/vkid/url');
+export async function getAuthorizeUrl(invite?: string | null): Promise<string> {
+  const qs = invite ? `?invite=${encodeURIComponent(invite)}` : '';
+  const res = await fetch(`/api/auth/vkid/url${qs}`);
   if (!res.ok) throw new Error(`Failed to get VK authorize URL: ${res.status}`);
   const { url } = await res.json();
   return url;

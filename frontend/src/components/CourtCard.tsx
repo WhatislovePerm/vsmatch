@@ -292,14 +292,17 @@ function MatchRow({
       )}
 
       <div className="grid grid-cols-1 min-[360px]:flex min-[360px]:flex-wrap gap-2 mt-1">
-        <Button
-          variant="secondary"
-          size="sm"
-          iconLeft={copied ? <Check size={14} /> : <Copy size={14} />}
-          onClick={onCopy}
-        >
-          {copied ? 'Скопировано' : 'Копировать ссылку'}
-        </Button>
+        {/* Инвайт работает только до старта матча — после кнопка не нужна */}
+        {match.status !== 'InProgress' && (
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={copied ? <Check size={14} /> : <Copy size={14} />}
+            onClick={onCopy}
+          >
+            {copied ? 'Скопировано' : 'Копировать ссылку'}
+          </Button>
+        )}
         {canManage && match.currentPlayers < 2 ? (
           <Button
             variant="danger"

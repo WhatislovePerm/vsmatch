@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { saveToken } from '../auth/storage';
+import { PENDING_INVITE_KEY, saveToken } from '../auth/storage';
 
 interface Props {
   onError: (err: string) => void;
@@ -29,6 +29,12 @@ export function AuthCallback({ onError, onSuccess }: Props) {
     }
 
     saveToken({ token, expiresAt });
+
+    // Инвайт, прокинутый сервером через redirect — кладём в localStorage ЭТОГО
+    // браузера (логин мог начаться в другом, например Telegram webview).
+    const invite = params.get('invite');
+    if (invite) localStorage.setItem(PENDING_INVITE_KEY, invite);
+
     window.history.replaceState(null, '', '/');
     onSuccess();
   }, [onError, onSuccess]);

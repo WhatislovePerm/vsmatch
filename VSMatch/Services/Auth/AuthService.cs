@@ -35,13 +35,15 @@ public class AuthService : IAuthService
         _moderator = moderator;
     }
 
-    public string BuildVkIdAuthorizeUrl()
+    public string BuildVkIdAuthorizeUrl(string? inviteCode = null)
     {
         var state = Guid.NewGuid().ToString("N");
         var verifier = Pkce.GenerateCodeVerifier();
         var challenge = Pkce.CreateS256CodeChallenge(verifier);
 
-        _stateStore.Save(state, verifier, DateTimeOffset.UtcNow.AddMinutes(5));
+        // invite хранится на сервере: VK может завершить логин в другом браузере,
+        // где localStorage с инвайтом недоступен (Telegram webview → Safari).
+        _stateStore.Save(state, verifier, NormalizeInvite(inviteCode), DateTimeOffset.UtcNow.AddMinutes(5));
 
         return $"{AuthorizationEndpoint}" +
                $"?response_type=code" +
@@ -67,9 +69,9 @@ public class AuthService : IAuthService
         return new MeDto(user.Id, user.DisplayName, user.VkUserId, user.Email, user.IsAdmin, ratings);
     }
 
-    public async Task<AuthResponse> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct)
+    public async Task<VkIdCallbackResult> HandleVkIdCallbackAsync(string code, string state, string? deviceId, CancellationToken ct)
     {
-        if (!_stateStore.TryGet(state, out var verifier))
+        if (!_stateStore.TryGet(state, out var verifier, out var inviteCode))
             throw new ValidationException("Сессия авторизации истекла. Попробуйте ещё раз.");
 
         _stateStore.Remove(state);
@@ -98,7 +100,7 @@ public class AuthService : IAuthService
             await _users.SaveChangesAsync(ct);
         }
 
-        return _tokens.CreateToken(user);
+        return new VkIdCallbackResult(_tokens.CreateToken(user), inviteCode);
     }
 
     public async Task<AuthResponse> ExchangeVkIdCodeAsync(VkIdExchangeRequest req, CancellationToken ct)
@@ -151,6 +153,14 @@ public class AuthService : IAuthService
         await _users.SaveChangesAsync(ct);
 
         return _tokens.CreateToken(user);
+    }
+
+    /// <summary>Инвайт попадает в redirect-URL — пропускаем только безопасный формат кода.</summary>
+    private static string? NormalizeInvite(string? inviteCode)
+    {
+        var code = inviteCode?.Trim();
+        if (string.IsNullOrEmpty(code) || code.Length > 32) return null;
+        return code.All(char.IsLetterOrDigit) ? code : null;
     }
 
     private static string BuildDisplayName(VkIdUserInfo? info, string vkUserId)

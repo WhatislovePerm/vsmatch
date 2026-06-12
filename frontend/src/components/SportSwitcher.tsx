@@ -16,7 +16,7 @@ export function SportSwitcher() {
             title={s.label}
             aria-label={s.label}
             className={[
-              'inline-flex items-center justify-center w-9 h-9 rounded-[11px] text-[18px] transition-colors',
+              'inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-[11px] text-[16px] sm:text-[18px] transition-colors',
               active ? 'bg-white shadow-sm' : 'hover:bg-white/60',
             ].join(' ')}
           >

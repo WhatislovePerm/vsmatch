@@ -25,11 +25,12 @@ public class AuthController : ControllerBase
 
     // Для браузера: 302 на VK ID
     [HttpGet("vkid/start")]
-    public IActionResult VkIdStart() => Redirect(_auth.BuildVkIdAuthorizeUrl());
+    public IActionResult VkIdStart([FromQuery] string? invite) => Redirect(_auth.BuildVkIdAuthorizeUrl(invite));
 
     // Для мобильных/SPA клиентов: вернуть URL строкой
     [HttpGet("vkid/url")]
-    public ActionResult<VkIdAuthorizeUrlDto> VkIdUrl() => Ok(new VkIdAuthorizeUrlDto(_auth.BuildVkIdAuthorizeUrl()));
+    public ActionResult<VkIdAuthorizeUrlDto> VkIdUrl([FromQuery] string? invite)
+        => Ok(new VkIdAuthorizeUrlDto(_auth.BuildVkIdAuthorizeUrl(invite)));
 
     // Для мобильных SDK с Confidential Flow:
     // приложение само генерит PKCE и присылает все 5 полей в теле POST.
@@ -61,11 +62,13 @@ public class AuthController : ControllerBase
             var res = await _auth.HandleVkIdCallbackAsync(code, state, deviceId, ct);
             if (!string.IsNullOrEmpty(frontend))
             {
-                var url = $"{frontend}#token={Uri.EscapeDataString(res.AccessToken)}" +
-                          $"&expiresAt={Uri.EscapeDataString(res.ExpiresAt.ToString("o"))}";
+                var url = $"{frontend}#token={Uri.EscapeDataString(res.Auth.AccessToken)}" +
+                          $"&expiresAt={Uri.EscapeDataString(res.Auth.ExpiresAt.ToString("o"))}";
+                if (!string.IsNullOrEmpty(res.InviteCode))
+                    url += $"&invite={Uri.EscapeDataString(res.InviteCode)}";
                 return Redirect(url);
             }
-            return Ok(res);
+            return Ok(res.Auth);
         }
         catch (AppException ex)
         {

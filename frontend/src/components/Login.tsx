@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { getAuthorizeUrl } from '../api/auth';
+import { PENDING_INVITE_KEY } from '../auth/storage';
 import { Button } from './ui';
 
 interface Props {
@@ -13,7 +14,10 @@ export function Login({ error }: Props) {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      const url = await getAuthorizeUrl();
+      // Инвайт уезжает на сервер вместе с OAuth state: VK может завершить логин
+      // в другом браузере (Telegram webview → Safari), где этого localStorage нет.
+      const invite = localStorage.getItem(PENDING_INVITE_KEY);
+      const url = await getAuthorizeUrl(invite);
       window.location.href = url;
     } catch (e) {
       alert(String(e));

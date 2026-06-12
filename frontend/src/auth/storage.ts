@@ -1,6 +1,9 @@
 const TOKEN_KEY = 'vsmatch.token';
 const EXPIRES_KEY = 'vsmatch.expiresAt';
 
+/** Инвайт-код матча, ожидающий присоединения после логина. */
+export const PENDING_INVITE_KEY = 'vsmatch.pendingInvite';
+
 export interface StoredToken {
   token: string;
   expiresAt: string;

@@ -12,7 +12,7 @@ import {
   updateMatch,
 } from './api/matches';
 import { getMe, updateProfile, type Me } from './api/auth';
-import { clearToken, loadToken } from './auth/storage';
+import { clearToken, loadToken, PENDING_INVITE_KEY } from './auth/storage';
 import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
@@ -26,7 +26,6 @@ import { useSport } from './sport/SportContext';
 import type { Court, Match, SubmitMatchResultRequest } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
-const PENDING_INVITE_KEY = 'vsmatch.pendingInvite';
 
 function detectInitialView(): View {
   if (window.location.pathname === '/auth/callback') return 'callback';
@@ -253,26 +252,35 @@ export default function App() {
     <div className="h-screen flex flex-col bg-page">
       <header className="bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
         <div className="px-3 sm:px-7 py-2.5 sm:py-3.5">
-          <div className="flex items-center justify-between gap-3 min-w-0">
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[18px] shrink-0">
+          <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[12px] sm:rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[16px] sm:text-[18px] shrink-0">
                 ⚽
               </div>
-              <div className="flex flex-col leading-tight min-w-0">
+              <div className="hidden sm:flex flex-col leading-tight min-w-0">
                 <span className="font-bold text-[15px] sm:text-[17px] tracking-tight text-ink truncate">
                   VSMatch
                 </span>
-                <span className="text-[11px] text-muted hidden sm:block">Москва · САО</span>
+                <span className="text-[11px] text-muted">Москва · САО</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <SportSwitcher />
               {me && (
-                <RatingBadge
-                  rating={me.ratings?.[sport] ?? 750}
-                  className="shrink-0"
-                />
+                <>
+                  {/* Мобайл: компактная плитка без названия тира */}
+                  <RatingBadge
+                    rating={me.ratings?.[sport] ?? 750}
+                    size="sm"
+                    showLabel={false}
+                    className="shrink-0 sm:hidden"
+                  />
+                  <RatingBadge
+                    rating={me.ratings?.[sport] ?? 750}
+                    className="shrink-0 hidden sm:inline-flex"
+                  />
+                </>
               )}
               {me && (
                 <>
