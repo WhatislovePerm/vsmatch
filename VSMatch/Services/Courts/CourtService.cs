@@ -65,12 +65,13 @@ public class CourtService : ICourtService
             })
             .ToListAsync(ct);
 
-        var ratingByUser = users.ToDictionary(u => u.Id, u => (u.DisplayName, u.Rating == 0 ? 1000 : u.Rating));
+        var initial = Domain.Matches.RatingCalculator.InitialRating;
+        var ratingByUser = users.ToDictionary(u => u.Id, u => (u.DisplayName, u.Rating == 0 ? initial : u.Rating));
 
         return perPlayer
             .Select(x =>
             {
-                var (name, rating) = ratingByUser.TryGetValue(x.UserId, out var v) ? v : (x.UserId.ToString(), 1000.0);
+                var (name, rating) = ratingByUser.TryGetValue(x.UserId, out var v) ? v : (x.UserId.ToString(), initial);
                 return new TopPlayerDto(x.UserId, name, rating, x.MatchCount);
             })
             .OrderByDescending(x => x.Rating)

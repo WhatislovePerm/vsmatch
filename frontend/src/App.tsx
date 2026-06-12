@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { HelpCircle, LogOut } from 'lucide-react';
 import { fetchCourts } from './api/courts';
 import {
   createMatch,
-  fetchMatchByInvite,
   fetchMatches,
   fetchMyMatchHistory,
   joinMatch,
@@ -18,13 +17,13 @@ import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
 import { Login } from './components/Login';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
-import { Button, IconButton } from './components/ui';
+import { IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
 import { SportSwitcher } from './components/SportSwitcher';
 import { FeedbackModal } from './components/FeedbackModal';
 import { RatingBadge } from './components/RatingBadge';
 import { useSport } from './sport/SportContext';
-import type { Court, Match, MatchTeam, SubmitMatchResultRequest } from './types';
+import type { Court, Match, SubmitMatchResultRequest } from './types';
 
 type View = 'callback' | 'login' | 'app' | 'loading';
 const PENDING_INVITE_KEY = 'vsmatch.pendingInvite';
@@ -42,7 +41,7 @@ function getInviteCodeFromPath(): string | null {
 }
 
 export default function App() {
-  const { sport } = useSport();
+  const { sport, setSport } = useSport();
   const [view, setView] = useState<View>(detectInitialView);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
@@ -51,9 +50,10 @@ export default function App() {
   const [myMatchHistory, setMyMatchHistory] = useState<Match[]>([]);
   const [selected, setSelected] = useState<Court | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [pendingInviteMatch, setPendingInviteMatch] = useState<Match | null>(null);
-  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // id матча, карточку которого юзер закрыл вручную — не реоткрываем его автоматически
+  const dismissedMatchIdRef = useRef<string | null>(null);
 
   const loadHistorySafely = useCallback(async () => {
     try {
@@ -88,10 +88,8 @@ export default function App() {
     setMe(meRes);
 
     // Шаг 2: данные приложения. Ошибки тут НЕ должны логаутить юзера.
-    let courtsRes: Court[] = [];
     try {
       const [c, m] = await Promise.all([fetchCourts(sport), fetchMatches(sport)]);
-      courtsRes = c;
       setCourts(c);
       setMatches(m);
     } catch (e) {
@@ -105,23 +103,31 @@ export default function App() {
       console.warn('Не удалось загрузить историю матчей', e);
     }
 
-    // Шаг 3: pending invite — тоже не критично. Протухшую ссылку просто чистим.
+    // Шаг 3: pending invite — сразу присоединяем (перешёл по ссылке = хочет играть).
+    // Если юзер уже в этом матче (например, сам создатель) — бэкенд вернёт матч без ошибки.
     const pendingInvite = localStorage.getItem(PENDING_INVITE_KEY);
     if (pendingInvite) {
+      localStorage.removeItem(PENDING_INVITE_KEY);
+      window.history.replaceState(null, '', '/');
       try {
-        const invited = await fetchMatchByInvite(pendingInvite);
-        window.history.replaceState(null, '', '/');
-        setPendingInviteMatch(invited);
-        const court = courtsRes.find((c) => c.id === invited.courtId);
-        if (court) setSelected(court);
-      } catch {
-        localStorage.removeItem(PENDING_INVITE_KEY);
-        window.history.replaceState(null, '', '/');
+        const joined = await joinMatchByInvite(pendingInvite, 'TeamB');
+        if (joined.sport !== sport) {
+          // Матч по другому спорту — переключаем, авто-открытие подхватит корт.
+          setSport(joined.sport);
+        } else {
+          const [c, m] = await Promise.all([fetchCourts(sport), fetchMatches(sport)]);
+          setCourts(c);
+          setMatches(m);
+          const court = c.find((x) => x.id === joined.courtId);
+          if (court) setSelected(court);
+        }
+      } catch (e) {
+        setInviteError((e as Error)?.message ?? 'Не удалось присоединиться к матчу');
       }
     }
 
     setView('app');
-  }, [loadHistorySafely, sport]);
+  }, [loadHistorySafely, sport, setSport]);
 
   useEffect(() => {
     if (!selected) return;
@@ -147,6 +153,9 @@ export default function App() {
     if (!stored) return;
 
     let reloadTimer: number | undefined;
+    let events: EventSource | null = null;
+    let disposed = false;
+
     const scheduleReload = () => {
       if (reloadTimer !== undefined) return;
       reloadTimer = window.setTimeout(() => {
@@ -155,20 +164,65 @@ export default function App() {
       }, 150);
     };
 
-    const events = new EventSource(`/api/matches/events?access_token=${encodeURIComponent(stored.token)}`);
-    events.addEventListener('matches-changed', scheduleReload);
-    events.onerror = () => {
-      // Никогда не выкидываем юзера в логин из-за SSE — это всего лишь live-обновления.
-      // EventSource сам попробует переподключиться; при стойком CLOSED просто отпускаем.
-      if (events.readyState === EventSource.CLOSED) {
-        events.close();
-      }
+    const connect = () => {
+      if (disposed) return;
+      events?.close();
+      events = new EventSource(`/api/matches/events?access_token=${encodeURIComponent(stored.token)}`);
+      events.addEventListener('matches-changed', scheduleReload);
+      events.onerror = () => {
+        // Никогда не выкидываем юзера в логин из-за SSE — это всего лишь live-обновления.
+        // EventSource сам реконнектится; при стойком CLOSED переподключимся на visibilitychange.
+        if (events?.readyState === EventSource.CLOSED) events.close();
+      };
     };
+
+    // Свёрнутый браузер (особенно мобильный) убивает SSE-соединение.
+    // При возврате вкладки: тянем свежие данные и пересоздаём стрим, если он умер.
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      scheduleReload();
+      if (!events || events.readyState === EventSource.CLOSED) connect();
+    };
+
+    connect();
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
+      disposed = true;
+      document.removeEventListener('visibilitychange', onVisibility);
       if (reloadTimer !== undefined) window.clearTimeout(reloadTimer);
-      events.close();
+      events?.close();
     };
   }, [view, reloadCourtsAndMatches]);
+
+  // Если у юзера есть активный матч — авто-открываем карточку его площадки,
+  // чтобы не искать её на карте. Ручное закрытие запоминаем per-match.
+  useEffect(() => {
+    if (view !== 'app' || !me) return;
+    const myActive = matches.find(
+      (m) =>
+        (m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress') &&
+        m.players.some((p) => p.userId === me.userId),
+    );
+    if (!myActive || dismissedMatchIdRef.current === myActive.id) return;
+    if (selected?.id === myActive.courtId) return;
+
+    const court = courts.find((c) => c.id === myActive.courtId);
+    if (court) setSelected(court);
+  }, [view, me, matches, courts, selected]);
+
+  const handleCloseCourtCard = () => {
+    if (selected && me) {
+      const myActiveHere = matches.find(
+        (m) =>
+          m.courtId === selected.id &&
+          (m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress') &&
+          m.players.some((p) => p.userId === me.userId),
+      );
+      if (myActiveHere) dismissedMatchIdRef.current = myActiveHere.id;
+    }
+    setSelected(null);
+  };
 
   const handleLogout = () => {
     clearToken();
@@ -178,21 +232,6 @@ export default function App() {
     setMyMatchHistory([]);
     setSelected(null);
     setView('login');
-  };
-
-  const handleJoinInvite = async (team: MatchTeam) => {
-    if (!pendingInviteMatch) return;
-    setInviteBusy(true);
-    try {
-      const joined = await joinMatchByInvite(pendingInviteMatch.inviteCode, team);
-      localStorage.removeItem(PENDING_INVITE_KEY);
-      setPendingInviteMatch(null);
-      await reloadCourtsAndMatches();
-      const court = courts.find((c) => c.id === joined.courtId);
-      if (court) setSelected(court);
-    } finally {
-      setInviteBusy(false);
-    }
   };
 
   if (view === 'callback') {
@@ -231,7 +270,7 @@ export default function App() {
               <SportSwitcher />
               {me && (
                 <RatingBadge
-                  rating={me.ratings?.[sport] ?? 1000}
+                  rating={me.ratings?.[sport] ?? 750}
                   className="shrink-0"
                 />
               )}
@@ -283,7 +322,7 @@ export default function App() {
             court={selected}
             matches={matches.filter((m) => m.courtId === selected.id)}
             currentUserId={me?.userId ?? null}
-            onClose={() => setSelected(null)}
+            onClose={handleCloseCourtCard}
             onCreateMatch={async (input) => {
               await createMatch({ courtId: selected.id, ...input });
               await reloadCourtsAndMatches();
@@ -346,54 +385,20 @@ export default function App() {
         {feedbackOpen && (
           <FeedbackModal onClose={() => setFeedbackOpen(false)} />
         )}
-        {pendingInviteMatch && (
-          <InviteJoinPanel
-            match={pendingInviteMatch}
-            busy={inviteBusy}
-            onJoin={handleJoinInvite}
-            onClose={() => {
-              localStorage.removeItem(PENDING_INVITE_KEY);
-              setPendingInviteMatch(null);
-            }}
-          />
+        {inviteError && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1300] max-w-md px-4 py-3 rounded-[14px] bg-danger-bg border border-danger-line text-danger text-[13px] shadow-md flex items-start gap-2">
+            <span className="break-words">{inviteError}</span>
+            <button
+              type="button"
+              className="shrink-0 font-bold opacity-70 hover:opacity-100"
+              onClick={() => setInviteError(null)}
+              aria-label="Закрыть"
+            >
+              ×
+            </button>
+          </div>
         )}
       </main>
-    </div>
-  );
-}
-
-function InviteJoinPanel({
-  match,
-  busy,
-  onJoin,
-  onClose,
-}: {
-  match: Match;
-  busy: boolean;
-  onJoin: (team: MatchTeam) => Promise<void>;
-  onClose: () => void;
-}) {
-  return (
-    <div className="absolute inset-0 z-[1300] bg-ink/20 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-[360px] bg-white border border-line rounded-[28px] shadow-[0_20px_60px_-20px_rgba(31,44,65,0.35)] p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[12px] font-bold uppercase tracking-wider text-muted">
-              Приглашение
-            </div>
-            <h2 className="mt-1 text-[20px] font-bold text-ink">{match.title}</h2>
-            <p className="mt-1 text-[13px] text-muted">
-              Принять приглашение и присоединиться к матчу 1×1.
-            </p>
-          </div>
-          <IconButton onClick={onClose} aria-label="Закрыть">×</IconButton>
-        </div>
-        <div className="mt-5">
-          <Button block disabled={busy} onClick={() => onJoin('TeamB')}>
-            Присоединиться
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

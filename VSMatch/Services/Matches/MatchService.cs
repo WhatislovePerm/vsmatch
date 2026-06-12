@@ -269,7 +269,7 @@ public class MatchService : IMatchService
                 {
                     UserId = player.UserId,
                     Sport = match.Sport,
-                    Rating = 1000,
+                    Rating = RatingCalculator.InitialRating,
                 };
                 player.User.Ratings.Add(sportRating);
                 _db.UserRatings.Add(sportRating);

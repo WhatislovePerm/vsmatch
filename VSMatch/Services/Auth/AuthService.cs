@@ -58,10 +58,11 @@ public class AuthService : IAuthService
         var user = await _users.GetProfileByIdAsync(userId, ct)
             ?? throw new NotFoundException("Пользователь не найден.");
 
-        // Включаем все спорты с default=1000 для тех, по которым ещё не играл.
+        // Включаем все спорты со стартовым рейтингом для тех, по которым ещё не играл.
         var ratings = Domain.Sports.SportCatalog.All.Keys.ToDictionary(
             sport => sport,
-            sport => user.Ratings.FirstOrDefault(r => r.Sport == sport)?.Rating ?? 1000);
+            sport => user.Ratings.FirstOrDefault(r => r.Sport == sport)?.Rating
+                     ?? Domain.Matches.RatingCalculator.InitialRating);
 
         return new MeDto(user.Id, user.DisplayName, user.VkUserId, user.Email, user.IsAdmin, ratings);
     }

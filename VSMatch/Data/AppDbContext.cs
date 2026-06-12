@@ -44,7 +44,7 @@ public class AppDbContext : DbContext
         {
             e.HasKey(x => new { x.UserId, x.Sport });
             e.Property(x => x.Sport).HasConversion<string>().HasMaxLength(32);
-            e.Property(x => x.Rating).HasDefaultValue(1000);
+            e.Property(x => x.Rating).HasDefaultValue(Domain.Matches.RatingCalculator.InitialRating);
             e.HasOne(x => x.User)
                 .WithMany(x => x.Ratings)
                 .HasForeignKey(x => x.UserId)

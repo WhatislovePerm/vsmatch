@@ -130,7 +130,11 @@ export function CourtCard({
         )}
 
         {/* Топ игроков */}
-        <CourtTopPlayers courtId={court.id} sport={court.sport} />
+        <CourtTopPlayers
+          courtId={court.id}
+          sport={court.sport}
+          refreshKey={matches.filter((m) => m.status === 'Completed').length}
+        />
 
         {/* Матчи */}
         <section className="mt-5 pt-5 border-t border-line">

@@ -7,11 +7,13 @@ import { RatingBadge } from './RatingBadge';
 interface Props {
   courtId: string;
   sport: SportKind;
+  /** Меняется при завершении матча на корте — триггерит рефетч топа. */
+  refreshKey?: string | number;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-export function CourtTopPlayers({ courtId, sport }: Props) {
+export function CourtTopPlayers({ courtId, sport, refreshKey }: Props) {
   const [players, setPlayers] = useState<TopPlayer[] | null>(null);
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function CourtTopPlayers({ courtId, sport }: Props) {
       .then((res) => { if (!cancelled) setPlayers(res); })
       .catch(() => { if (!cancelled) setPlayers([]); });
     return () => { cancelled = true; };
-  }, [courtId, sport]);
+  }, [courtId, sport, refreshKey]);
 
   if (players === null) {
     return (

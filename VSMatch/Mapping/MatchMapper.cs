@@ -43,8 +43,8 @@ public static class MatchMapper
 
     private static double GetSportRating(User? user, Domain.Sports.SportKind sport)
     {
-        if (user is null) return 1000;
+        if (user is null) return Domain.Matches.RatingCalculator.InitialRating;
         var found = user.Ratings.FirstOrDefault(r => r.Sport == sport);
-        return found?.Rating ?? 1000;
+        return found?.Rating ?? Domain.Matches.RatingCalculator.InitialRating;
     }
 }
