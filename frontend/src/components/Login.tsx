@@ -3,6 +3,7 @@ import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { getAuthorizeUrl } from '../api/auth';
 import { PENDING_INVITE_KEY } from '../auth/storage';
 import { Button } from './ui';
+import { Logo } from './icons/Logo';
 
 interface Props {
   error?: string | null;
@@ -38,8 +39,8 @@ export function Login({ error }: Props) {
       <div className="w-full max-w-[400px] bg-card rounded-[32px] border border-line p-9 shadow-[0_30px_80px_-30px_rgba(31,44,65,0.25)]">
         {/* Логотип-плитка */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-[20px] bg-ink-3 text-white flex items-center justify-center text-[28px] shadow-[0_8px_24px_-6px_rgba(26,26,46,0.5)]">
-            ⚽
+          <div className="w-16 h-16 rounded-[20px] bg-ink-3 text-white flex items-center justify-center shadow-[0_8px_24px_-6px_rgba(26,26,46,0.5)]">
+            <Logo size={38} />
           </div>
         </div>
 

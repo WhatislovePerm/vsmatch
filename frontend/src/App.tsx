@@ -22,6 +22,7 @@ import { ProfilePanel } from './components/ProfilePanel';
 import { SportSwitcher } from './components/SportSwitcher';
 import { FeedbackModal } from './components/FeedbackModal';
 import { RatingBadge } from './components/RatingBadge';
+import { Logo } from './components/icons/Logo';
 import { useSport } from './sport/SportContext';
 import type { Court, Match, SubmitMatchResultRequest } from './types';
 
@@ -254,8 +255,9 @@ export default function App() {
         <div className="px-3 sm:px-7 py-2.5 sm:py-3.5">
           <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[12px] sm:rounded-[14px] bg-ink-3 text-white flex items-center justify-center text-[16px] sm:text-[18px] shrink-0">
-                ⚽
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-[12px] sm:rounded-[14px] bg-ink-3 text-white flex items-center justify-center shrink-0">
+                <Logo size={22} className="sm:hidden" />
+                <Logo size={24} className="hidden sm:inline-flex" />
               </div>
               <div className="hidden sm:flex flex-col leading-tight min-w-0">
                 <span className="font-bold text-[15px] sm:text-[17px] tracking-tight text-ink truncate">

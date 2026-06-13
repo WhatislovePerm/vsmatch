@@ -31,6 +31,10 @@ services:
       VkId__RedirectUri: ${VKID_REDIRECT_URI}
       VkId__Scope: "vkid.personal_info email"
       VkId__FrontendRedirectUrl: ${VKID_FRONTEND_REDIRECT_URL}
+      Cors__AllowedOrigins__0: "https://vsmatch.ru"
+      Cors__AllowedOrigins__1: "https://www.vsmatch.ru"
+      Cors__AllowedOrigins__2: "https://toploc.ru"
+      Cors__AllowedOrigins__3: "https://www.toploc.ru"
     depends_on:
       postgres:
         condition: service_healthy

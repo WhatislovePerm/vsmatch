@@ -1,5 +1,6 @@
 import { SPORTS } from '../types';
 import { useSport } from '../sport/SportContext';
+import { SportIcon } from './icons/SportIcon';
 
 export function SportSwitcher() {
   const { sport, setSport } = useSport();
@@ -16,11 +17,11 @@ export function SportSwitcher() {
             title={s.label}
             aria-label={s.label}
             className={[
-              'inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-[11px] text-[16px] sm:text-[18px] transition-colors',
-              active ? 'bg-white shadow-sm' : 'hover:bg-white/60',
+              'inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-[11px] transition-colors',
+              active ? 'bg-white shadow-sm text-ink-3' : 'text-muted hover:bg-white/60 hover:text-ink-2',
             ].join(' ')}
           >
-            <span>{s.emoji}</span>
+            <SportIcon kind={s.kind} size={20} />
           </button>
         );
       })}

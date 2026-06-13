@@ -1,4 +1,4 @@
-vsmatch.ru, www.vsmatch.ru {
+toploc.ru, www.toploc.ru, vsmatch.ru, www.vsmatch.ru {
     encode zstd gzip
 
     # API → .NET контейнер
