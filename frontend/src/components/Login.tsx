@@ -46,7 +46,7 @@ export function Login({ error }: Props) {
 
         {/* Заголовок */}
         <div className="mt-6 text-center">
-          <h1 className="text-[28px] font-bold tracking-tight text-ink leading-none">VSMatch</h1>
+          <h1 className="text-[28px] font-bold tracking-tight text-ink leading-none">TopLoc</h1>
           <p className="mt-2 text-[14px] text-muted">
             Коробки Москвы, матчи, рейтинг
           </p>

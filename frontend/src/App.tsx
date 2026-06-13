@@ -260,7 +260,7 @@ export default function App() {
               </div>
               <div className="hidden sm:flex flex-col leading-tight min-w-0">
                 <span className="font-bold text-[15px] sm:text-[17px] tracking-tight text-ink truncate">
-                  VSMatch
+                  TopLoc
                 </span>
                 <span className="text-[11px] text-muted">Москва · САО</span>
               </div>

@@ -4,7 +4,7 @@ interface Props {
 }
 
 /**
- * Логотип VSMatch: корона над гео-пином с отверстием.
+ * Логотип TopLoc: корона над гео-пином с отверстием.
  * Воссоздан по макету (точного SVG в исходниках не было). fill=currentColor.
  */
 export const LOGO_SVG = `<svg viewBox="0 0 48 48" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
