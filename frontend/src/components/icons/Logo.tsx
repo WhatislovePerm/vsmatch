@@ -8,11 +8,11 @@ interface Props {
  * Воссоздан по макету (точного SVG в исходниках не было). fill=currentColor.
  */
 export const LOGO_SVG = `<svg viewBox="0 0 48 48" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <circle cx="11" cy="9.5" r="2.4"/>
-  <circle cx="24" cy="5.4" r="2.7"/>
-  <circle cx="37" cy="9.5" r="2.4"/>
-  <path d="M11 11.4 16.3 17.2 24 7.8 31.7 17.2 37 11.4 34.6 24.2H13.4L11 11.4Z"/>
-  <path fill-rule="evenodd" clip-rule="evenodd" d="M24 19.2c-6.4 0-11.6 5.1-11.6 11.4 0 8 11.6 15.4 11.6 15.4S35.6 38.6 35.6 30.6C35.6 24.3 30.4 19.2 24 19.2Zm0 7.7a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z"/>
+  <path d="M14 17 L15 8.5 L19.5 13 L24 6 L28.5 13 L33 8.5 L34 17 Z"/>
+  <circle cx="15" cy="7.4" r="2.1"/>
+  <circle cx="24" cy="5" r="2.3"/>
+  <circle cx="33" cy="7.4" r="2.1"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M24 16.6c5.5 0 10 4.5 10 10.1 0 6.7-7.9 14.6-10 18.7-2.1-4.1-10-12-10-18.7 0-5.6 4.5-10.1 10-10.1Zm0 6a4.1 4.1 0 1 0 0 8.2 4.1 4.1 0 0 0 0-8.2Z"/>
 </svg>`;
 
 export function Logo({ size = 36, className }: Props) {
