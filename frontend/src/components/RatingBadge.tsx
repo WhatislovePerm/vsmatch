@@ -43,7 +43,7 @@ export function RatingBadge({ rating, size = 'md', showLabel, className }: Props
         className,
       )}
     >
-      {withLabel && <span>{tier.label}</span>}
+      {withLabel && <span className="hidden min-[480px]:inline">{tier.label}</span>}
       <span className={withLabel ? 'opacity-85' : ''}>{Math.round(rating)}</span>
     </span>
   );

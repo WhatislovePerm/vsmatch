@@ -270,19 +270,7 @@ export default function App() {
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <SportSwitcher />
               {me && (
-                <>
-                  {/* Мобайл: компактная плитка без названия тира */}
-                  <RatingBadge
-                    rating={me.ratings?.[sport] ?? 750}
-                    size="sm"
-                    showLabel={false}
-                    className="shrink-0 sm:hidden"
-                  />
-                  <RatingBadge
-                    rating={me.ratings?.[sport] ?? 750}
-                    className="shrink-0 hidden sm:inline-flex"
-                  />
-                </>
+                <RatingBadge rating={me.ratings?.[sport] ?? 750} className="shrink-0" />
               )}
               {me && (
                 <>
