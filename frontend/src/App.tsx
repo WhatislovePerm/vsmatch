@@ -250,8 +250,8 @@ export default function App() {
   if (view === 'loading') return <FullScreenLoader />;
 
   return (
-    <div className="h-screen flex flex-col bg-page">
-      <header className="bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
+    <div className="h-[100dvh] overflow-hidden flex flex-col bg-page">
+      <header className="shrink-0 bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
         <div className="px-3 sm:px-7 py-2.5 sm:py-3.5">
           <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
