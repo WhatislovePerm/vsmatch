@@ -13,6 +13,7 @@ import type { Court, Match, MatchPlayer, MatchTeam, SubmitMatchResultRequest } f
 import { Badge, Button, IconButton, Input, NumberInput } from './ui';
 import { CourtTopPlayers } from './CourtTopPlayers';
 import { RatingBadge } from './RatingBadge';
+import { courtAddressLine, courtTitle } from '../courts/display';
 
 interface Props {
   court: Court;
@@ -63,6 +64,8 @@ export function CourtCard({
     (m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress',
   );
   const hasActiveMatch = activeMatches.length > 0;
+  const titleText = courtTitle(court);
+  const addressText = courtAddressLine(court);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -104,7 +107,7 @@ export function CourtCard({
       <div className="flex items-start justify-between gap-3 px-4 sm:px-6 pt-5 sm:pt-6 pb-3">
         <div className="flex flex-col gap-2 min-w-0">
           <h2 className="text-[18px] font-bold tracking-tight text-ink leading-tight pr-2 break-words">
-            {court.name}
+            {titleText}
           </h2>
           <Badge tone={hasActiveMatch ? 'danger' : 'success'}>
             {hasActiveMatch ? 'Идёт матч' : 'Свободно'}
@@ -117,14 +120,14 @@ export function CourtCard({
 
       {/* Scrollable body */}
       <div className="overflow-y-auto thin-scroll px-4 sm:px-6 pb-6 flex-1">
-        {court.address && (
-          <p className="text-[13px] text-ink-2 leading-relaxed mt-2">
-            {court.address}
+        {addressText && (
+          <p className="text-[13px] text-ink-2 leading-relaxed mt-2 whitespace-normal break-words max-w-[24rem]">
+            {addressText}
           </p>
         )}
 
         {court.description && (
-          <p className={`text-[13px] text-muted leading-relaxed ${court.address ? 'mt-3' : 'mt-2'}`}>
+          <p className={`text-[13px] text-muted leading-relaxed ${addressText ? 'mt-3' : 'mt-2'}`}>
             {court.description}
           </p>
         )}

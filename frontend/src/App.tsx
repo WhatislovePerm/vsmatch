@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { HelpCircle, LogOut } from 'lucide-react';
+import { HelpCircle, LogOut, UserRound } from 'lucide-react';
 import { fetchCourts } from './api/courts';
 import {
   createMatch,
@@ -278,8 +278,8 @@ export default function App() {
                     onClick={() => setProfileOpen(true)}
                     className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-subtle border border-line hover:bg-line/60 transition-colors min-w-0 max-w-[190px]"
                   >
-                    <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
-                      {(me.name?.[0] ?? '?').toUpperCase()}
+                    <div className="w-6 h-6 rounded-full bg-ink-3 text-white flex items-center justify-center shrink-0">
+                      <UserRound size={14} />
                     </div>
                     <span className="text-[13px] font-medium text-ink-2 truncate">
                       {me.name}
@@ -291,9 +291,7 @@ export default function App() {
                     variant="subtle"
                     className="sm:hidden"
                   >
-                    <span className="text-[12px] font-bold text-ink-2">
-                      {(me.name?.[0] ?? '?').toUpperCase()}
-                    </span>
+                    <UserRound size={17} />
                   </IconButton>
                 </>
               )}
@@ -362,6 +360,8 @@ export default function App() {
             }}
             onSubmitResult={async (match, result: SubmitMatchResultRequest) => {
               await submitMatchResult(match.id, result);
+              const freshMe = await getMe();
+              setMe(freshMe);
               await reloadCourtsAndMatches();
             }}
           />

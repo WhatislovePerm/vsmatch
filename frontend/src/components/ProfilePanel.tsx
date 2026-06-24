@@ -5,6 +5,7 @@ import type { Match } from '../types';
 import { Button, IconButton, Input } from './ui';
 import { HistoryView } from './HistoryView';
 import { AdminFeedbackView } from './AdminFeedbackView';
+import { AdminStatsView } from './AdminStatsView';
 
 interface Props {
   me: Me;
@@ -70,7 +71,8 @@ export function ProfilePanel({ me, history, onClose, onSave }: Props) {
         </div>
 
         {me.isAdmin && (
-          <div className="px-6 pb-6 pt-2 border-t border-line">
+          <div className="px-6 pb-6 pt-5 border-t border-line flex flex-col gap-5">
+            <AdminStatsView />
             <AdminFeedbackView />
           </div>
         )}

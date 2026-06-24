@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VSMatch.Data;
 using VSMatch.Domain;
+using VSMatch.Data.Entities;
+using VSMatch.Dtos.Admin;
 using VSMatch.Dtos.Feedback;
 using VSMatch.Services.Auth;
 using VSMatch.Services.Feedback;
@@ -76,6 +78,40 @@ public class FeedbackController : ControllerBase
         {
             return ApiErrors.ToActionResult(ex);
         }
+    }
+
+    /// <summary>
+    /// Общая статистика продукта — только админу.
+    /// </summary>
+    [HttpGet("admin/stats")]
+    public async Task<ActionResult<AdminStatsDto>> Stats(CancellationToken ct)
+    {
+        if (!await IsAdminAsync(ct)) return Forbid();
+
+        var activeStatuses = new[] { MatchStatus.Scheduled, MatchStatus.Ready, MatchStatus.InProgress };
+
+        var topPlayers = await _db.UserRatings
+            .AsNoTracking()
+            .Include(r => r.User)
+            .OrderByDescending(r => r.Rating)
+            .Take(5)
+            .Select(r => new AdminTopPlayerDto(
+                r.UserId,
+                r.User != null ? r.User.DisplayName : r.UserId.ToString(),
+                r.Sport,
+                r.Rating))
+            .ToListAsync(ct);
+
+        return Ok(new AdminStatsDto(
+            Users: await _db.Users.CountAsync(ct),
+            Courts: await _db.Courts.CountAsync(ct),
+            Matches: await _db.Matches.CountAsync(ct),
+            ActiveMatches: await _db.Matches.CountAsync(m => activeStatuses.Contains(m.Status), ct),
+            CompletedMatches: await _db.Matches.CountAsync(m => m.Status == MatchStatus.Completed, ct),
+            CancelledMatches: await _db.Matches.CountAsync(m => m.Status == MatchStatus.Cancelled, ct),
+            NewFeedback: await _db.Feedbacks.CountAsync(f => f.Status == FeedbackStatus.New, ct),
+            TopPlayers: topPlayers
+        ));
     }
 
     private async Task<bool> IsAdminAsync(CancellationToken ct)

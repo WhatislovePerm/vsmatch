@@ -1,18 +1,8 @@
 @import "tailwindcss";
 
-/* ───────────── Фирменный шрифт Unifix SP ───────────── */
-@font-face {
-  font-family: "Unifix SP";
-  src: url("/fonts/UnifixSP.woff2") format("woff2"),
-       url("/fonts/UnifixSP.otf") format("opentype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 /* ───────────── Theme tokens (light, iOS-style, из SVG-референса) ───────────── */
 @theme {
-  --font-sans: "Unifix SP", "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", Roboto, sans-serif;
 
   /* Поверхности */

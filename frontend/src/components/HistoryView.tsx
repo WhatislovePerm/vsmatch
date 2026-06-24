@@ -1,6 +1,8 @@
-import { CircleCheck, History } from 'lucide-react';
-import type { Match, MatchPlayer } from '../types';
-import { Badge } from './ui';
+import { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, CircleCheck, History } from 'lucide-react';
+import type { Match } from '../types';
+import { Badge, IconButton } from './ui';
+import { cleanCourtName } from '../courts/display';
 
 interface Props {
   matches: Match[];
@@ -8,7 +10,15 @@ interface Props {
 }
 
 export function HistoryView({ matches, currentUserId }: Props) {
+  const pageSize = 4;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
+  const safePage = Math.min(page, totalPages);
   const completedCount = matches.filter((m) => m.status === 'Completed').length;
+  const pageItems = useMemo(
+    () => matches.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [matches, safePage],
+  );
 
   if (matches.length === 0) {
     return (
@@ -37,7 +47,7 @@ export function HistoryView({ matches, currentUserId }: Props) {
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {matches.map((match) => (
+        {pageItems.map((match) => (
           <HistoryCard
             key={match.id}
             match={match}
@@ -45,6 +55,30 @@ export function HistoryView({ matches, currentUserId }: Props) {
           />
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <IconButton
+            aria-label="Предыдущая страница истории"
+            variant="subtle"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+          >
+            <ChevronLeft size={16} />
+          </IconButton>
+          <span className="text-[12px] font-semibold text-muted tabular-nums">
+            {safePage} / {totalPages}
+          </span>
+          <IconButton
+            aria-label="Следующая страница истории"
+            variant="subtle"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+          >
+            <ChevronRight size={16} />
+          </IconButton>
+        </div>
+      )}
     </div>
   );
 }
@@ -61,14 +95,23 @@ function HistoryCard({
   const playerB = match.players.find((p) => p.team === 'TeamB');
   const completed = match.status === 'Completed';
   const finishedAt = match.resultSubmittedAt ?? match.updatedAt ?? match.createdAt;
+  const ratingDelta = me?.ratingDelta ?? 0;
 
   return (
     <article className="bg-white border border-line rounded-[20px] p-3.5">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <div className="text-[14px] font-bold text-ink truncate">{match.title}</div>
-          <div className="mt-0.5 text-[12px] text-muted truncate">
-            {match.courtName} · {new Date(finishedAt).toLocaleDateString('ru-RU')}
+          <div
+            className="mt-0.5 text-[12px] text-muted leading-snug break-words"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {cleanCourtName(match.courtName)} · {new Date(finishedAt).toLocaleDateString('ru-RU')}
           </div>
         </div>
         <Badge
@@ -94,69 +137,18 @@ function HistoryCard({
       )}
 
       {me && completed && (
-        <div className="mt-2.5 grid grid-cols-3 gap-1.5">
-          <Stat label="Голы" value={me.goals} />
-          <Stat label="Пасы" value={me.assists} />
-          <Stat
-            label="Рейтинг"
-            value={`${me.ratingDelta > 0 ? '+' : ''}${Math.round(me.ratingDelta)}`}
-            tone={me.ratingDelta >= 0 ? 'positive' : 'negative'}
-          />
+        <div className="mt-2.5 rounded-[12px] bg-subtle border border-line px-3 py-2 flex items-center justify-between gap-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+            Рейтинг
+          </span>
+          <span className={[
+            'text-[16px] font-bold tabular-nums',
+            ratingDelta >= 0 ? 'text-success' : 'text-danger',
+          ].join(' ')}>
+            {ratingDelta > 0 ? '+' : ''}{Math.round(ratingDelta)}
+          </span>
         </div>
       )}
-
-      <PlayersBrief players={match.players} currentUserId={currentUserId} />
     </article>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: number | string;
-  tone?: 'neutral' | 'positive' | 'negative';
-}) {
-  const valueClass = tone === 'positive'
-    ? 'text-success'
-    : tone === 'negative' ? 'text-danger' : 'text-ink';
-  return (
-    <div className="rounded-[12px] bg-subtle border border-line p-2">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-muted">{label}</div>
-      <div className={`mt-0.5 text-[15px] font-bold tabular-nums ${valueClass}`}>{value}</div>
-    </div>
-  );
-}
-
-function PlayersBrief({
-  players,
-  currentUserId,
-}: {
-  players: MatchPlayer[];
-  currentUserId: string | null;
-}) {
-  if (players.length === 0) return null;
-  return (
-    <div className="mt-2.5 flex flex-col gap-1">
-      {players.map((p) => {
-        const isMe = p.userId === currentUserId;
-        return (
-          <div
-            key={p.userId}
-            className={[
-              'flex items-center justify-between gap-2 text-[12px]',
-              isMe ? 'font-bold text-ink' : 'text-ink-2',
-            ].join(' ')}
-          >
-            <span className="truncate">{p.displayName}</span>
-            <span className="shrink-0 text-muted tabular-nums">
-              {p.goals}г {p.assists}п
-            </span>
-          </div>
-        );
-      })}
-    </div>
   );
 }
