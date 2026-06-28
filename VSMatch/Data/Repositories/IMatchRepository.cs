@@ -11,5 +11,6 @@ public interface IMatchRepository : IBaseRepository<Match>
     Task<Match?> GetByInviteCodeAsync(string inviteCode, CancellationToken ct = default);
     Task<bool> HasActiveMatchForCourtAsync(Guid courtId, Guid? exceptMatchId = null, CancellationToken ct = default);
     Task<bool> HasActiveMatchForUserAsync(Guid userId, CancellationToken ct = default);
+    Task<Dictionary<Guid, int>> CountCompletedBySportPerUserAsync(SportKind sport, IReadOnlyList<Guid> userIds, CancellationToken ct = default);
     Task<bool> InviteCodeExistsAsync(string inviteCode, CancellationToken ct = default);
 }

@@ -15,7 +15,7 @@ import { getMe, updateProfile, type Me } from './api/auth';
 import { clearToken, loadToken, PENDING_INVITE_KEY } from './auth/storage';
 import { CourtMap } from './components/CourtMap';
 import { CourtCard } from './components/CourtCard';
-import { Login } from './components/Login';
+import { Onboarding } from './components/Onboarding';
 import { AuthCallback, FullScreenLoader } from './components/AuthCallback';
 import { IconButton } from './components/ui';
 import { ProfilePanel } from './components/ProfilePanel';
@@ -246,7 +246,7 @@ export default function App() {
     );
   }
 
-  if (view === 'login') return <Login error={loginError} />;
+  if (view === 'login') return <Onboarding error={loginError} />;
   if (view === 'loading') return <FullScreenLoader />;
 
   return (
@@ -269,7 +269,7 @@ export default function App() {
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <SportSwitcher />
               {me && (
-                <RatingBadge rating={me.ratings?.[sport] ?? 750} className="shrink-0" />
+                <RatingBadge rating={me.ratings?.[sport] ?? 500} className="shrink-0" />
               )}
               {me && (
                 <>

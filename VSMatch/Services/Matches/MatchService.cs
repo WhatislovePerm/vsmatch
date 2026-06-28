@@ -249,19 +249,14 @@ public class MatchService : IMatchService
         if (req.Players.Any(p => p.Goals < 0 || p.Assists < 0))
             throw new ValidationException("Голы и пасы не могут быть отрицательными.");
 
+        // Гарантируем наличие UserRating для каждого игрока и снимаем рейтинги ДО матча,
+        // чтобы все дельты считались по одинаковой базе.
+        var sportRatingByUser = new Dictionary<Guid, UserRating>();
         foreach (var player in match.Players)
         {
             if (player.User is null)
                 throw new InvalidOperationException("Игрок матча не найден.");
 
-            var stats = statsByUserId[player.UserId];
-            var delta = RatingCalculator.CalculateDelta(player.Team, req.TeamAScore, req.TeamBScore, stats.Goals, stats.Assists);
-
-            player.Goals = stats.Goals;
-            player.Assists = stats.Assists;
-            player.RatingDelta = delta;
-
-            // Рейтинг по конкретному спорту: создаём UserRating если ещё нет.
             var sportRating = player.User.Ratings.FirstOrDefault(r => r.Sport == match.Sport);
             if (sportRating is null)
             {
@@ -274,7 +269,37 @@ public class MatchService : IMatchService
                 player.User.Ratings.Add(sportRating);
                 _db.UserRatings.Add(sportRating);
             }
-            sportRating.Rating = Math.Max(0, sportRating.Rating + delta);
+            sportRatingByUser[player.UserId] = sportRating;
+        }
+        var preRating = sportRatingByUser.ToDictionary(kv => kv.Key, kv => kv.Value.Rating);
+
+        // Сколько завершённых матчей по этому спорту у каждого игрока (для K-фактора).
+        var userIds = match.Players.Select(p => p.UserId).ToList();
+        var gamesByUser = (await _matches.CountCompletedBySportPerUserAsync(match.Sport, userIds, ct));
+
+        foreach (var player in match.Players)
+        {
+            var stats = statsByUserId[player.UserId];
+            player.Goals = stats.Goals;
+            player.Assists = stats.Assists;
+
+            var ownTeamScore = player.Team == MatchTeam.TeamA ? req.TeamAScore : req.TeamBScore;
+            var oppTeamScore = player.Team == MatchTeam.TeamA ? req.TeamBScore : req.TeamAScore;
+            var outcome = ownTeamScore > oppTeamScore ? 1.0 : ownTeamScore == oppTeamScore ? 0.5 : 0.0;
+
+            var opponents = match.Players.Where(p => p.Team != player.Team).ToList();
+            var oppAvgRating = opponents.Count > 0
+                ? opponents.Average(p => preRating[p.UserId])
+                : preRating[player.UserId];
+
+            var games = gamesByUser.TryGetValue(player.UserId, out var gc) ? gc : 0;
+
+            var delta = Math.Round(RatingCalculator.CalculateDelta(
+                preRating[player.UserId], oppAvgRating, games, match.Sport,
+                ownTeamScore, oppTeamScore, outcome));
+
+            player.RatingDelta = delta;
+            sportRatingByUser[player.UserId].Rating = Math.Max(0, sportRatingByUser[player.UserId].Rating + delta);
         }
 
         match.TeamAScore = req.TeamAScore;

@@ -13,9 +13,6 @@ interface Props {
 
 /** Глянцевая «плитка» как в макете: вертикальный блик + диагональный металлик-градиент. */
 function tileStyle(tier: RatingTier): CSSProperties {
-  if (tier.flat) {
-    return { background: tier.base, color: tier.text };
-  }
   const light = `color-mix(in srgb, ${tier.base} 55%, white)`;
   const dark = `color-mix(in srgb, ${tier.base} 75%, black)`;
   return {

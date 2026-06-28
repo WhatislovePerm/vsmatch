@@ -72,6 +72,21 @@ public class MatchRepository : BaseRepository<Match>, IMatchRepository
     public Task<bool> InviteCodeExistsAsync(string inviteCode, CancellationToken ct = default)
         => Set.AnyAsync(m => m.InviteCode == inviteCode, ct);
 
+    public async Task<Dictionary<Guid, int>> CountCompletedBySportPerUserAsync(
+        SportKind sport, IReadOnlyList<Guid> userIds, CancellationToken ct = default)
+    {
+        var rows = await Db.MatchPlayers
+            .AsNoTracking()
+            .Where(mp => mp.Match!.Sport == sport
+                      && mp.Match.Status == MatchStatus.Completed
+                      && userIds.Contains(mp.UserId))
+            .GroupBy(mp => mp.UserId)
+            .Select(g => new { UserId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(x => x.UserId, x => x.Count);
+    }
+
     private static int NormalizePage(int page) => Math.Max(1, page);
 
     private static int NormalizePageSize(int pageSize, int defaultValue)

@@ -1,26 +1,39 @@
 export interface RatingTier {
   key: string;
   label: string;
-  /** Базовый цвет плитки из дизайн-макета. */
+  /** Базовый цвет плитки. */
   base: string;
   /** Цвет текста поверх плитки. */
   text: string;
-  /** Плоская заливка без глянца (только «Новичок»). */
-  flat?: boolean;
 }
 
-/** Тиры и цвета — из Figma-макета (плитки 200×200, rx 20). */
+/** 25 уровней. Подуровни I/II/III внутри семейства делят цвет. */
 const TIERS: Array<{ min: number; tier: RatingTier }> = [
-  { min: 0,    tier: { key: 'rookie',      label: 'Новичок',     base: '#1F2C41', text: '#FFFFFF', flat: true } },
-  { min: 700,  tier: { key: 'bronze',      label: 'Бронза',      base: '#D09742', text: '#3A2A0E' } },
-  { min: 850,  tier: { key: 'silver',      label: 'Серебро',     base: '#CDC9C2', text: '#3D3A35' } },
-  { min: 950,  tier: { key: 'gold',        label: 'Золото',      base: '#C1A875', text: '#3A2F1A' } },
-  { min: 1050, tier: { key: 'platinum',    label: 'Платина',     base: '#73BAE1', text: '#11364C' } },
-  { min: 1200, tier: { key: 'emerald',     label: 'Изумруд',     base: '#75C062', text: '#15330E' } },
-  { min: 1400, tier: { key: 'champion',    label: 'Чемпион',     base: '#4542AF', text: '#FFFFFF' } },
-  { min: 1600, tier: { key: 'master',      label: 'Мастер',      base: '#7F42AF', text: '#FFFFFF' } },
-  { min: 1850, tier: { key: 'grandmaster', label: 'Грандмастер', base: '#C133B3', text: '#FFFFFF' } },
-  { min: 2100, tier: { key: 'legend',      label: 'Легенда',     base: '#C95C5C', text: '#FFFFFF' } },
+  { min: 0,    tier: { key: 'bronze-1',  label: 'Бронза',        base: '#D09742', text: '#3A2A0E' } },
+  { min: 501,  tier: { key: 'bronze-2',  label: 'Бронза II',     base: '#D09742', text: '#3A2A0E' } },
+  { min: 600,  tier: { key: 'bronze-3',  label: 'Бронза III',    base: '#D09742', text: '#3A2A0E' } },
+  { min: 700,  tier: { key: 'silver-1',  label: 'Серебро I',     base: '#CDC9C2', text: '#3D3A35' } },
+  { min: 800,  tier: { key: 'silver-2',  label: 'Серебро II',    base: '#CDC9C2', text: '#3D3A35' } },
+  { min: 900,  tier: { key: 'silver-3',  label: 'Серебро III',   base: '#CDC9C2', text: '#3D3A35' } },
+  { min: 1000, tier: { key: 'gold-1',    label: 'Золото I',      base: '#C1A875', text: '#3A2F1A' } },
+  { min: 1100, tier: { key: 'gold-2',    label: 'Золото II',     base: '#C1A875', text: '#3A2F1A' } },
+  { min: 1200, tier: { key: 'gold-3',    label: 'Золото III',    base: '#C1A875', text: '#3A2F1A' } },
+  { min: 1300, tier: { key: 'plat-1',    label: 'Платина I',     base: '#73BAE1', text: '#11364C' } },
+  { min: 1400, tier: { key: 'plat-2',    label: 'Платина II',    base: '#73BAE1', text: '#11364C' } },
+  { min: 1500, tier: { key: 'plat-3',    label: 'Платина III',   base: '#73BAE1', text: '#11364C' } },
+  { min: 1600, tier: { key: 'diam-1',    label: 'Алмаз I',       base: '#5AD1E6', text: '#0E3A45' } },
+  { min: 1700, tier: { key: 'diam-2',    label: 'Алмаз II',      base: '#5AD1E6', text: '#0E3A45' } },
+  { min: 1800, tier: { key: 'diam-3',    label: 'Алмаз III',     base: '#5AD1E6', text: '#0E3A45' } },
+  { min: 1900, tier: { key: 'master-1',  label: 'Мастер I',      base: '#7F42AF', text: '#FFFFFF' } },
+  { min: 2000, tier: { key: 'master-2',  label: 'Мастер II',     base: '#7F42AF', text: '#FFFFFF' } },
+  { min: 2100, tier: { key: 'master-3',  label: 'Мастер III',    base: '#7F42AF', text: '#FFFFFF' } },
+  { min: 2200, tier: { key: 'gm-1',      label: 'Грандмастер I', base: '#C133B3', text: '#FFFFFF' } },
+  { min: 2300, tier: { key: 'gm-2',      label: 'Грандмастер II',base: '#C133B3', text: '#FFFFFF' } },
+  { min: 2400, tier: { key: 'gm-3',      label: 'Грандмастер III',base: '#C133B3', text: '#FFFFFF' } },
+  { min: 2500, tier: { key: 'legend',    label: 'Легенда',       base: '#C95C5C', text: '#FFFFFF' } },
+  { min: 2700, tier: { key: 'immortal',  label: 'Бессмертный',   base: '#8B1E3F', text: '#FFFFFF' } },
+  { min: 3000, tier: { key: 'god',       label: 'Бог площадки',  base: '#E8732A', text: '#FFFFFF' } },
+  { min: 3500, tier: { key: 'absolute',  label: 'Абсолют',       base: '#7C3AED', text: '#FFFFFF' } },
 ];
 
 export function getRatingTier(rating: number): RatingTier {
@@ -30,3 +43,6 @@ export function getRatingTier(rating: number): RatingTier {
   }
   return found;
 }
+
+/** Полная таблица уровней — для экрана «как работает рейтинг». */
+export const RATING_TIERS = TIERS.map(({ min, tier }) => ({ min, ...tier }));
