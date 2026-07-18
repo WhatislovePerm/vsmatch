@@ -150,9 +150,10 @@ public class OsmCourtImporter : BackgroundService
                 Id = Guid.NewGuid(),
                 OsmId = el.Id,
                 SportKind = sport,
-                Name = string.IsNullOrWhiteSpace(name) ? $"Площадка #{el.Id}" : name,
-                Sport = GetTag(el, "sport"),
-                Surface = GetTag(el, "surface"),
+                Name = string.IsNullOrWhiteSpace(name) ? $"Площадка #{el.Id}" : Cap(name, 256),
+                // OSM-теги вроде "basketball;soccer;volleyball" бывают длиннее колонки varchar(64).
+                Sport = Cap(GetTag(el, "sport"), 64),
+                Surface = Cap(GetTag(el, "surface"), 64),
                 Lat = lat.Value,
                 Lon = lon.Value,
                 IsFree = true,
@@ -220,6 +221,10 @@ public class OsmCourtImporter : BackgroundService
         => el.Tags is not null && el.Tags.TryGetValue(key, out var v) ? v : null;
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
+
+    /// <summary>Обрезает значение под лимит колонки БД (null остаётся null).</summary>
+    private static string? Cap(string? s, int max)
+        => s is null ? null : s.Length <= max ? s : s[..max];
 
     private class OverpassResponse
     {

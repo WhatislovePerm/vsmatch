@@ -44,6 +44,7 @@ builder.Services.AddScoped<ICourtService, CourtService>();
 builder.Services.AddHostedService<CourtAddressEnricher>();
 builder.Services.AddHostedService<OsmCourtImporter>();
 builder.Services.AddHostedService<AdminBootstrapper>();
+builder.Services.AddHostedService<StaleMatchCleaner>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();

@@ -64,6 +64,8 @@ export function CourtCard({
     (m) => m.status === 'Scheduled' || m.status === 'Ready' || m.status === 'InProgress',
   );
   const hasActiveMatch = activeMatches.length > 0;
+  // «Идёт матч» — только когда игра реально началась; сбор игроков — отдельный статус.
+  const hasLiveMatch = activeMatches.some((m) => m.status === 'InProgress');
   const titleText = courtTitle(court);
   const addressText = courtAddressLine(court);
 
@@ -109,8 +111,8 @@ export function CourtCard({
           <h2 className="text-[18px] font-bold tracking-tight text-ink leading-tight pr-2 break-words">
             {titleText}
           </h2>
-          <Badge tone={hasActiveMatch ? 'danger' : 'success'}>
-            {hasActiveMatch ? 'Идёт матч' : 'Свободно'}
+          <Badge tone={hasLiveMatch ? 'danger' : hasActiveMatch ? 'warn' : 'success'}>
+            {hasLiveMatch ? 'Идёт матч' : hasActiveMatch ? 'Собирается матч' : 'Свободно'}
           </Badge>
         </div>
         <IconButton onClick={onClose} aria-label="Закрыть">
