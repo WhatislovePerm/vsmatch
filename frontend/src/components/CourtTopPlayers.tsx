@@ -42,7 +42,9 @@ export function CourtTopPlayers({ courtId, sport, refreshKey }: Props) {
         <h3 className="text-[12px] font-bold uppercase tracking-wider text-muted mb-3 flex items-center gap-1.5">
           <Trophy size={13} /> Топ игроков
         </h3>
-        <p className="text-[12.5px] text-muted">Здесь ещё никто не играл</p>
+        <p className="text-[12.5px] text-muted">
+          Трон свободен — выиграй первый матч тут и забери 🥇 первое место.
+        </p>
       </section>
     );
   }

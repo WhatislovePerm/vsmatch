@@ -46,3 +46,35 @@ export function getRatingTier(rating: number): RatingTier {
 
 /** Полная таблица уровней — для экрана «как работает рейтинг». */
 export const RATING_TIERS = TIERS.map(({ min, tier }) => ({ min, ...tier }));
+
+export interface TierProgress {
+  current: RatingTier;
+  /** null — уже максимальный тир («Абсолют»). */
+  next: RatingTier | null;
+  /** Сколько очков осталось до следующего тира. */
+  pointsToNext: number;
+  /** 0..1 — прогресс внутри текущего тира. */
+  progress: number;
+}
+
+/** Прогресс до следующего тира — для профиля и празднования. */
+export function getTierProgress(rating: number): TierProgress {
+  let idx = 0;
+  for (let i = 0; i < TIERS.length; i++) {
+    if (rating >= TIERS[i].min) idx = i;
+  }
+  const current = TIERS[idx].tier;
+  const currentMin = TIERS[idx].min;
+  const nextEntry = TIERS[idx + 1] ?? null;
+
+  if (!nextEntry) {
+    return { current, next: null, pointsToNext: 0, progress: 1 };
+  }
+  const span = nextEntry.min - currentMin;
+  return {
+    current,
+    next: nextEntry.tier,
+    pointsToNext: Math.max(0, Math.ceil(nextEntry.min - rating)),
+    progress: Math.min(1, Math.max(0, (rating - currentMin) / span)),
+  };
+}

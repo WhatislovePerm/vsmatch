@@ -18,7 +18,7 @@ export function SportSwitcher() {
             aria-label={s.label}
             className={[
               'inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-[11px] transition-colors',
-              active ? 'bg-white shadow-sm text-ink-3' : 'text-muted hover:bg-white/60 hover:text-ink-2',
+              active ? 'bg-card shadow-sm text-ink-3' : 'text-muted hover:bg-card/60 hover:text-ink-2',
             ].join(' ')}
           >
             <SportIcon kind={s.kind} size={20} />

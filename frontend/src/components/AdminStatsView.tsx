@@ -64,7 +64,7 @@ export function AdminStatsView() {
             <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
               Топ рейтинга
             </div>
-            <nav className="inline-flex items-center gap-0.5 p-0.5 rounded-[10px] bg-white border border-line">
+            <nav className="inline-flex items-center gap-0.5 p-0.5 rounded-[10px] bg-card border border-line">
               {SPORTS.map((s) => (
                 <button
                   key={s.kind}

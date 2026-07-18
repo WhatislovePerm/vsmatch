@@ -99,7 +99,7 @@ export function CourtCard({
         'sm:top-5 sm:right-5 sm:w-[min(430px,calc(100vw-40px))] sm:max-h-[calc(100vh-40px)]',
         // mobile: bottom sheet (от низа)
         'left-0 right-0 bottom-0 max-h-[80vh] sm:left-auto',
-        'bg-white border border-line',
+        'bg-card border border-line',
         'sm:rounded-[32px] rounded-t-[32px] sm:rounded-b-[32px] rounded-b-none',
         'shadow-[0_20px_60px_-20px_rgba(31,44,65,0.25)]',
         'flex flex-col overflow-hidden',
@@ -134,14 +134,7 @@ export function CourtCard({
           </p>
         )}
 
-        {/* Топ игроков */}
-        <CourtTopPlayers
-          courtId={court.id}
-          sport={court.sport}
-          refreshKey={matches.filter((m) => m.status === 'Completed').length}
-        />
-
-        {/* Матчи */}
+        {/* Матчи — главное действие, поэтому выше топа игроков */}
         <section className="mt-5 pt-5 border-t border-line">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-muted">
@@ -150,7 +143,10 @@ export function CourtCard({
           </div>
 
           {activeMatches.length === 0 ? (
-            <p className="text-[13px] text-muted">Матчей пока нет</p>
+            <p className="text-[13px] text-muted">
+              Здесь пока пусто. Стань первым — создай матч ниже и забери до{' '}
+              <span className="font-semibold text-ink-2 tabular-nums">+60</span> рейтинга за победу.
+            </p>
           ) : (
             <div className="flex flex-col gap-2.5">
               {activeMatches.map((match) => (
@@ -221,6 +217,13 @@ export function CourtCard({
             </Button>
           </form>
         )}
+
+        {/* Топ игроков — справочная секция, ниже действий */}
+        <CourtTopPlayers
+          courtId={court.id}
+          sport={court.sport}
+          refreshKey={matches.filter((m) => m.status === 'Completed').length}
+        />
       </div>
     </aside>
   );
@@ -366,7 +369,7 @@ function PlayersList({
   showStats?: boolean;
 }) {
   return (
-    <div className="bg-white border border-line rounded-[16px] p-2.5 flex flex-col gap-1">
+    <div className="bg-card border border-line rounded-[16px] p-2.5 flex flex-col gap-1">
       {players.map((p) => (
         <div key={p.userId} className="text-[12.5px] text-ink-2 min-w-0">
           <div className="flex items-center justify-between gap-2">

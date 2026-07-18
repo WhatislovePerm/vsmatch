@@ -36,7 +36,7 @@ export function FeedbackModal({ onClose }: Props) {
 
   return (
     <div className="absolute inset-0 z-[1300] bg-ink/20 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <section className="w-full max-w-[460px] bg-white border border-line rounded-[28px] shadow-[0_24px_70px_-22px_rgba(31,44,65,0.32)] overflow-hidden">
+      <section className="w-full max-w-[460px] bg-card border border-line rounded-[28px] shadow-[0_24px_70px_-22px_rgba(31,44,65,0.32)] overflow-hidden">
         <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-line">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-[14px] bg-subtle border border-line flex items-center justify-center shrink-0">
@@ -71,7 +71,7 @@ export function FeedbackModal({ onClose }: Props) {
               placeholder="Опишите проблему или идею…"
               rows={6}
               maxLength={2000}
-              className="w-full px-4 py-3 bg-subtle border border-line rounded-[14px] text-[14px] text-ink placeholder:text-muted-2 transition-colors focus:outline-none focus:border-ink-3/40 focus:bg-white resize-none"
+              className="w-full px-4 py-3 bg-subtle border border-line rounded-[14px] text-[14px] text-ink placeholder:text-muted-2 transition-colors focus:outline-none focus:border-ink-3/40 focus:bg-card resize-none"
             />
             <div className="flex items-center justify-between text-[11px] text-muted">
               <span>Не публикуйте оскорбительный контент.</span>

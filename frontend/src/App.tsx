@@ -22,6 +22,7 @@ import { ProfilePanel } from './components/ProfilePanel';
 import { SportSwitcher } from './components/SportSwitcher';
 import { FeedbackModal } from './components/FeedbackModal';
 import { RatingBadge } from './components/RatingBadge';
+import { RatingCelebration, type CelebrationData } from './components/RatingCelebration';
 import { Logo } from './components/icons/Logo';
 import { useSport } from './sport/SportContext';
 import type { Court, Match, SubmitMatchResultRequest } from './types';
@@ -52,6 +53,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
   // id матча, карточку которого юзер закрыл вручную — не реоткрываем его автоматически
   const dismissedMatchIdRef = useRef<string | null>(null);
 
@@ -251,7 +253,7 @@ export default function App() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col bg-page">
-      <header className="shrink-0 bg-white/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
+      <header className="shrink-0 bg-card/90 backdrop-blur-md border-b border-line z-[1100] shadow-[0_1px_0_rgba(31,44,65,0.02)]">
         <div className="px-3 sm:px-7 py-2.5 sm:py-3.5">
           <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink">
@@ -269,7 +271,7 @@ export default function App() {
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <SportSwitcher />
               {me && (
-                <RatingBadge rating={me.ratings?.[sport] ?? 500} className="shrink-0" />
+                <RatingBadge rating={me.ratings?.[sport] ?? 500} className="shrink-0 rating-shimmer" />
               )}
               {me && (
                 <>
@@ -359,10 +361,15 @@ export default function App() {
               await reloadCourtsAndMatches();
             }}
             onSubmitResult={async (match, result: SubmitMatchResultRequest) => {
-              await submitMatchResult(match.id, result);
+              const completed = await submitMatchResult(match.id, result);
               const freshMe = await getMe();
               setMe(freshMe);
               await reloadCourtsAndMatches();
+              // Празднование: моя дельта из завершённого матча + новый рейтинг.
+              const mine = completed.players.find((p) => p.userId === freshMe.userId);
+              if (mine) {
+                setCelebration({ delta: mine.ratingDelta, newRating: mine.rating });
+              }
             }}
           />
         )}
@@ -381,6 +388,9 @@ export default function App() {
         )}
         {feedbackOpen && (
           <FeedbackModal onClose={() => setFeedbackOpen(false)} />
+        )}
+        {celebration && (
+          <RatingCelebration data={celebration} onClose={() => setCelebration(null)} />
         )}
         {inviteError && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1300] max-w-md px-4 py-3 rounded-[14px] bg-danger-bg border border-danger-line text-danger text-[13px] shadow-md flex items-start gap-2">

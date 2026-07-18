@@ -1,11 +1,14 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using VSMatch.Data;
 using VSMatch.Data.Repositories;
 using VSMatch.Options;
+using VSMatch.Services.Admin;
 using VSMatch.Services.Auth;
 using VSMatch.Services.Courts;
 using VSMatch.Domain.Moderation;
@@ -13,6 +16,28 @@ using VSMatch.Services.Matches;
 using VSMatch.Services.Feedback;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Наблюдаемость ─────────────────────────────────────────────
+// Serilog: структурные логи (контекст запроса, уровни, шаблоны) в stdout.
+builder.Host.UseSerilog((ctx, cfg) => cfg
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"));
+
+// Sentry: включается только если задан SENTRY_DSN (env или конфиг).
+var sentryDsn = builder.Configuration["SENTRY_DSN"];
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    builder.WebHost.UseSentry(o =>
+    {
+        o.Dsn = sentryDsn;
+        o.Environment = builder.Environment.EnvironmentName;
+        o.TracesSampleRate = 0.2;   // 20% трейсов производительности
+    });
+}
 
 // Options
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
@@ -46,6 +71,8 @@ builder.Services.AddHostedService<OsmCourtImporter>();
 builder.Services.AddHostedService<AdminBootstrapper>();
 builder.Services.AddHostedService<StaleMatchCleaner>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IAuthorizationHandler, AdminAuthorizationHandler>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddSingleton<IMatchEventHub, InMemoryMatchEventHub>();
 builder.Services.AddSingleton<IContentModerator, RegexContentModerator>();
@@ -92,7 +119,8 @@ builder.Services
             },
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(o =>
+    o.AddPolicy(AdminPolicy.Name, p => p.Requirements.Add(new AdminRequirement())));
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -135,6 +163,9 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// Лог каждого запроса: метод, путь, статус, время — структурно.
+app.UseSerilogRequestLogging();
 
 app.UseCors();
 app.UseAuthentication();

@@ -22,7 +22,7 @@ const buttonBase =
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
-    'bg-ink-3 text-white hover:bg-ink active:scale-[.98] shadow-[0_8px_20px_-6px_rgba(26,26,46,0.45)]',
+    'bg-ink-3 text-white hover:bg-ink hover:-translate-y-px active:translate-y-0 active:scale-[.98] shadow-[0_8px_20px_-6px_rgba(26,26,46,0.45)]',
   secondary:
     'bg-card text-ink-2 border border-line-strong hover:bg-subtle active:scale-[.98]',
   ghost:

@@ -23,7 +23,7 @@ export function HistoryView({ matches, currentUserId }: Props) {
   if (matches.length === 0) {
     return (
       <div className="rounded-[20px] bg-subtle border border-line p-5 text-center">
-        <div className="mx-auto w-10 h-10 rounded-[14px] bg-white border border-line flex items-center justify-center text-muted">
+        <div className="mx-auto w-10 h-10 rounded-[14px] bg-card border border-line flex items-center justify-center text-muted">
           <History size={18} />
         </div>
         <h3 className="mt-3 text-[14px] font-bold text-ink">Истории пока нет</h3>
@@ -98,7 +98,7 @@ function HistoryCard({
   const ratingDelta = me?.ratingDelta ?? 0;
 
   return (
-    <article className="bg-white border border-line rounded-[20px] p-3.5">
+    <article className="bg-card border border-line rounded-[20px] p-3.5">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <div className="text-[14px] font-bold text-ink truncate">{match.title}</div>

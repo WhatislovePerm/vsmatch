@@ -4,6 +4,7 @@ import maplibregl, {
   type Marker as MlMarker,
   type StyleSpecification,
 } from 'maplibre-gl';
+import Supercluster from 'supercluster';
 import type { Court } from '../types';
 import { sportIconSvg } from './icons/sportIcons';
 
@@ -21,33 +22,88 @@ const MAP_STYLE: StyleSpecification = {
   sources: {
     osm: {
       type: 'raster',
-      tiles: [
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      ],
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxzoom: 19,
     },
   },
-  layers: [
-    {
-      id: 'osm',
-      type: 'raster',
-      source: 'osm',
-    },
-  ],
+  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
+
+type ClusterProps = { cluster: true; cluster_id: number; point_count: number };
+type PointProps = { courtId: string };
 
 export function CourtMap({ courts, selectedId, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
-  const markersRef = useRef<Map<string, { marker: MlMarker; el: HTMLDivElement }>>(new Map());
+  const markersRef = useRef<MlMarker[]>([]);
+  const indexRef = useRef<Supercluster<PointProps> | null>(null);
+  const courtsByIdRef = useRef<Map<string, Court>>(new Map());
   const onSelectRef = useRef(onSelect);
+  const selectedIdRef = useRef(selectedId);
   const [mapError, setMapError] = useState<string | null>(null);
 
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
   useEffect(() => {
-    onSelectRef.current = onSelect;
-  }, [onSelect]);
+    selectedIdRef.current = selectedId;
+    renderMarkers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  /** Полная перерисовка маркеров под текущий вьюпорт: кластеры + отдельные точки. */
+  function renderMarkers() {
+    const map = mapRef.current;
+    const index = indexRef.current;
+    if (!map || !index) return;
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    const b = map.getBounds();
+    const clusters = index.getClusters(
+      [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+      Math.floor(map.getZoom()),
+    );
+
+    for (const feature of clusters) {
+      const [lon, lat] = (feature.geometry as GeoJSON.Point).coordinates;
+      const props = feature.properties as ClusterProps | PointProps;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'court-marker-wrapper';
+
+      if ('cluster' in props && props.cluster) {
+        // ── Кластер: кружок с числом, клик = приближение ──
+        const el = document.createElement('div');
+        const n = props.point_count;
+        el.className = `cluster-marker ${n >= 50 ? 'cluster-marker--lg' : n >= 10 ? 'cluster-marker--md' : ''}`;
+        el.textContent = n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n);
+        wrapper.appendChild(el);
+        wrapper.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const zoom = index.getClusterExpansionZoom(props.cluster_id);
+          map.easeTo({ center: [lon, lat], zoom: Math.min(zoom, 18), duration: 400 });
+        });
+      } else {
+        // ── Одиночная площадка ──
+        const court = courtsByIdRef.current.get((props as PointProps).courtId);
+        if (!court) continue;
+        const el = document.createElement('div');
+        el.className = markerClass(court, court.id === selectedIdRef.current);
+        el.innerHTML = sportIconSvg(court.sport, 17);
+        wrapper.appendChild(el);
+        wrapper.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onSelectRef.current(court);
+        });
+      }
+
+      markersRef.current.push(
+        new maplibregl.Marker({ element: wrapper }).setLngLat([lon, lat]).addTo(map),
+      );
+    }
+  }
 
   // Инициализация карты
   useEffect(() => {
@@ -73,93 +129,54 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
 
     map.on('error', (e) => {
       console.error('[Map error]', e);
-      const msg = (e?.error as Error | undefined)?.message ?? 'unknown error';
-      setMapError(msg);
+      setMapError((e?.error as Error | undefined)?.message ?? 'unknown error');
     });
 
     map.on('load', () => {
-      const c = container.getBoundingClientRect();
-      console.log('[Map] loaded; container=', c.width, 'x', c.height);
       map.resize();
+      renderMarkers();
     });
+    map.on('moveend', renderMarkers);
+    map.on('zoomend', renderMarkers);
 
     mapRef.current = map;
 
-    // Несколько триггеров resize: ResizeObserver + window.resize + таймеры
     const resizeObserver = new ResizeObserver(() => map.resize());
     resizeObserver.observe(container);
     window.addEventListener('resize', () => map.resize());
-
-    const timers = [50, 200, 500, 1000].map((ms) =>
-      setTimeout(() => map.resize(), ms),
-    );
+    const timers = [50, 200, 500, 1000].map((ms) => setTimeout(() => map.resize(), ms));
 
     return () => {
       timers.forEach(clearTimeout);
-      window.removeEventListener('resize', () => map.resize());
       resizeObserver.disconnect();
-      markersRef.current.clear();
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Синхронизация маркеров
+  // Перестройка индекса при смене списка площадок
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
+    courtsByIdRef.current = new Map(courts.map((c) => [c.id, c]));
 
-    const apply = () => {
-      const existing = markersRef.current;
-      const incomingIds = new Set(courts.map((c) => c.id));
-
-      for (const [id, { marker }] of existing) {
-        if (!incomingIds.has(id)) {
-          marker.remove();
-          existing.delete(id);
-        }
-      }
-
-      for (const c of courts) {
-        const entry = existing.get(c.id);
-        if (entry) {
-          entry.el.className = markerClass(c, c.id === selectedId);
-          continue;
-        }
-
-        // Outer обёртка — MapLibre её использует для позиционирования (transform).
-        // Inner div — визуальный пин с нашим hover/scale без конфликта.
-        const wrapper = document.createElement('div');
-        wrapper.className = 'court-marker-wrapper';
-        const visual = document.createElement('div');
-        visual.className = markerClass(c, c.id === selectedId);
-        visual.innerHTML = sportIconSvg(c.sport, 17);
-        wrapper.appendChild(visual);
-
-        wrapper.addEventListener('click', (e) => {
-          e.stopPropagation();
-          onSelectRef.current(c);
-        });
-
-        const marker = new maplibregl.Marker({ element: wrapper })
-          .setLngLat([c.lon, c.lat])
-          .addTo(map);
-
-        existing.set(c.id, { marker, el: visual });
-      }
-    };
-
-    if (map.loaded()) apply();
-    else map.once('load', apply);
-  }, [courts, selectedId]);
+    const index = new Supercluster<PointProps>({ radius: 52, maxZoom: 15 });
+    index.load(
+      courts.map((c) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [c.lon, c.lat] },
+        properties: { courtId: c.id },
+      })),
+    );
+    indexRef.current = index;
+    renderMarkers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courts]);
 
   return (
     <>
-      <div
-        ref={containerRef}
-        className="absolute inset-0"
-        style={{ width: '100%', height: '100%' }}
-      />
+      <div ref={containerRef} className="absolute inset-0 court-map" style={{ width: '100%', height: '100%' }} />
       {mapError && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] max-w-md px-4 py-3 rounded-[14px] bg-danger-bg border border-danger-line text-danger text-[12.5px] shadow-md">
           <div className="font-bold mb-1">Ошибка карты</div>
