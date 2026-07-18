@@ -42,15 +42,30 @@ public class VkIdClient : IVkIdClient
         using var resp = await _http.PostAsync(TokenEndpoint, form, ct);
         var raw = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
-            throw new InvalidOperationException($"VK ID token exchange failed: {(int)resp.StatusCode} {raw}");
+        {
+            _log.LogWarning(
+                "VK ID token exchange failed with status {StatusCode}",
+                (int)resp.StatusCode);
+            throw new InvalidOperationException(
+                $"VK ID token exchange failed with status {(int)resp.StatusCode}.");
+        }
 
-        _log.LogInformation("VK ID token response: {Raw}", raw);
+        TokenBody? token;
+        try
+        {
+            token = System.Text.Json.JsonSerializer.Deserialize<TokenBody>(raw);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _log.LogWarning("VK ID token endpoint returned invalid JSON.");
+            throw new InvalidOperationException("VK ID token response could not be parsed.");
+        }
 
-        var token = System.Text.Json.JsonSerializer.Deserialize<TokenBody>(raw)
-                    ?? throw new InvalidOperationException("Empty VK ID token response.");
-
-        if (string.IsNullOrEmpty(token.access_token))
-            throw new InvalidOperationException($"VK ID token response missing access_token. Raw: {raw}");
+        if (string.IsNullOrEmpty(token?.access_token))
+        {
+            _log.LogWarning("VK ID token response did not contain an access token.");
+            throw new InvalidOperationException("VK ID token response did not contain an access token.");
+        }
 
         return new VkIdTokenResult(token.access_token, token.expires_in, token.user_id?.ToString());
     }
@@ -65,13 +80,22 @@ public class VkIdClient : IVkIdClient
 
         using var resp = await _http.PostAsync(UserInfoEndpoint, form, ct);
         var raw = await resp.Content.ReadAsStringAsync(ct);
-        _log.LogInformation("VK ID user_info response: {Raw}", raw);
 
-        if (!resp.IsSuccessStatusCode) return null;
+        if (!resp.IsSuccessStatusCode)
+        {
+            _log.LogWarning(
+                "VK ID user_info request failed with status {StatusCode}",
+                (int)resp.StatusCode);
+            return null;
+        }
 
         UserInfoBody? info;
         try { info = System.Text.Json.JsonSerializer.Deserialize<UserInfoBody>(raw); }
-        catch { return null; }
+        catch (System.Text.Json.JsonException)
+        {
+            _log.LogWarning("VK ID user_info endpoint returned invalid JSON.");
+            return null;
+        }
         if (info is null) return null;
 
         var userId = (info.user?.user_id ?? info.user_id)?.ToString();

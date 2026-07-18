@@ -8,6 +8,7 @@ import {
   joinMatch,
   joinMatchByInvite,
   leaveMatch,
+  streamMatchEvents,
   submitMatchResult,
   updateMatch,
 } from './api/matches';
@@ -151,11 +152,11 @@ export default function App() {
 
   useEffect(() => {
     if (view !== 'app') return;
-    const stored = loadToken();
-    if (!stored) return;
+    if (!loadToken()) return;
 
     let reloadTimer: number | undefined;
-    let events: EventSource | null = null;
+    let reconnectTimer: number | undefined;
+    let streamAbort: AbortController | null = null;
     let disposed = false;
 
     const scheduleReload = () => {
@@ -166,16 +167,27 @@ export default function App() {
       }, 150);
     };
 
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimer !== undefined) return;
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        connect();
+      }, 2_000);
+    };
+
     const connect = () => {
       if (disposed) return;
-      events?.close();
-      events = new EventSource(`/api/matches/events?access_token=${encodeURIComponent(stored.token)}`);
-      events.addEventListener('matches-changed', scheduleReload);
-      events.onerror = () => {
-        // Никогда не выкидываем юзера в логин из-за SSE — это всего лишь live-обновления.
-        // EventSource сам реконнектится; при стойком CLOSED переподключимся на visibilitychange.
-        if (events?.readyState === EventSource.CLOSED) events.close();
-      };
+      streamAbort?.abort();
+      const controller = new AbortController();
+      streamAbort = controller;
+
+      streamMatchEvents(scheduleReload, controller.signal)
+        .then(scheduleReconnect)
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          console.warn('Поток обновлений матчей отключён', error);
+          scheduleReconnect();
+        });
     };
 
     // Свёрнутый браузер (особенно мобильный) убивает SSE-соединение.
@@ -183,7 +195,7 @@ export default function App() {
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;
       scheduleReload();
-      if (!events || events.readyState === EventSource.CLOSED) connect();
+      connect();
     };
 
     connect();
@@ -193,7 +205,8 @@ export default function App() {
       disposed = true;
       document.removeEventListener('visibilitychange', onVisibility);
       if (reloadTimer !== undefined) window.clearTimeout(reloadTimer);
-      events?.close();
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      streamAbort?.abort();
     };
   }, [view, reloadCourtsAndMatches]);
 

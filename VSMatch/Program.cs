@@ -35,6 +35,7 @@ if (!string.IsNullOrWhiteSpace(sentryDsn))
     {
         o.Dsn = sentryDsn;
         o.Environment = builder.Environment.EnvironmentName;
+        o.SendDefaultPii = false;
         o.TracesSampleRate = 0.2;   // 20% трейсов производительности
     });
 }
@@ -43,6 +44,10 @@ if (!string.IsNullOrWhiteSpace(sentryDsn))
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<VkIdOptions>(builder.Configuration.GetSection("VkId"));
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection("Cors"));
+
+var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+var vkId = builder.Configuration.GetSection("VkId").Get<VkIdOptions>() ?? new VkIdOptions();
+AppConfigurationValidator.Validate(jwt, vkId, builder.Environment.IsDevelopment());
 
 var cors = builder.Configuration.GetSection("Cors").Get<CorsOptions>() ?? new CorsOptions();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
@@ -84,7 +89,6 @@ builder.Services.AddSingleton<IVkIdStateStore, InMemoryVkIdStateStore>();
 builder.Services.AddHttpClient<IVkIdClient, VkIdClient>();
 
 // JWT auth
-var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 builder.Services
     .AddAuthentication(opt =>
     {
@@ -104,19 +108,6 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
-        };
-        opt.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                if (ctx.Request.Path == "/api/matches/events" &&
-                    ctx.Request.Query.TryGetValue("access_token", out var token))
-                {
-                    ctx.Token = token;
-                }
-
-                return Task.CompletedTask;
-            },
         };
     });
 builder.Services.AddAuthorization(o =>

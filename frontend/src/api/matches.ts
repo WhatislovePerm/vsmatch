@@ -87,3 +87,46 @@ export async function leaveMatch(id: string): Promise<Match> {
   if (!res.ok) await throwApiError(res, 'Не удалось покинуть матч');
   return res.json();
 }
+
+/**
+ * Читает SSE через fetch, чтобы JWT передавался в Authorization header,
+ * а не в query string, который может попасть в access-логи и историю.
+ */
+export async function streamMatchEvents(
+  onMatchesChanged: () => void,
+  signal: AbortSignal,
+): Promise<void> {
+  const res = await authFetch('/api/matches/events', {
+    headers: { Accept: 'text/event-stream' },
+    signal,
+  });
+  if (!res.ok) await throwApiError(res, 'Не удалось подключить обновления матчей');
+  if (!res.body) throw new Error('Браузер не поддерживает потоковые обновления');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (!signal.aborted) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, '\n');
+
+    let boundary = buffer.indexOf('\n\n');
+    while (boundary >= 0) {
+      const eventBlock = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+
+      const eventName = eventBlock
+        .split('\n')
+        .find((line) => line.startsWith('event:'))
+        ?.slice('event:'.length)
+        .trim();
+
+      if (eventName === 'matches-changed') onMatchesChanged();
+      boundary = buffer.indexOf('\n\n');
+    }
+  }
+}
