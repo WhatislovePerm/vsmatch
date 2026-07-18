@@ -3,16 +3,13 @@ import type { ReactNode } from 'react';
 import { Activity, CalendarCheck, MapPin, MessageSquareWarning, Users } from 'lucide-react';
 import { fetchAdminStats, type AdminStats } from '../api/admin';
 import { RatingBadge } from './RatingBadge';
-
-const SPORT_LABEL: Record<string, string> = {
-  Football: 'Футбол',
-  Basketball: 'Баскетбол',
-  TableTennis: 'Теннис',
-};
+import type { SportKind } from '../types';
+import { SPORTS } from '../types';
 
 export function AdminStatsView() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [topSport, setTopSport] = useState<SportKind>('Football');
 
   useEffect(() => {
     let alive = true;
@@ -63,20 +60,46 @@ export function AdminStatsView() {
 
       {stats.topPlayers.length > 0 && (
         <div className="rounded-[18px] bg-subtle border border-line p-3">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">
-            Топ рейтинга
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
+              Топ рейтинга
+            </div>
+            <nav className="inline-flex items-center gap-0.5 p-0.5 rounded-[10px] bg-white border border-line">
+              {SPORTS.map((s) => (
+                <button
+                  key={s.kind}
+                  type="button"
+                  onClick={() => setTopSport(s.kind)}
+                  className={[
+                    'px-2.5 h-7 rounded-[8px] text-[11.5px] font-semibold transition-colors whitespace-nowrap',
+                    topSport === s.kind ? 'bg-ink-3 text-white' : 'text-muted hover:text-ink',
+                  ].join(' ')}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </nav>
           </div>
-          <div className="flex flex-col gap-2">
-            {stats.topPlayers.map((player) => (
-              <div key={`${player.userId}-${player.sport}`} className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold text-ink truncate">{player.displayName}</div>
-                  <div className="text-[11.5px] text-muted">{SPORT_LABEL[player.sport] ?? player.sport}</div>
-                </div>
-                <RatingBadge rating={player.rating} size="sm" showLabel={false} className="shrink-0" />
+
+          {(() => {
+            const players = stats.topPlayers.filter((p) => p.sport === topSport);
+            if (players.length === 0) {
+              return <div className="text-[12.5px] text-muted py-1.5">По этому спорту ещё никто не играл</div>;
+            }
+            return (
+              <div className="flex flex-col gap-2">
+                {players.map((player, idx) => (
+                  <div key={`${player.userId}-${player.sport}`} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-5 text-[12px] font-bold text-muted-2 tabular-nums shrink-0">{idx + 1}</span>
+                      <div className="text-[13px] font-semibold text-ink truncate">{player.displayName}</div>
+                    </div>
+                    <RatingBadge rating={player.rating} size="sm" showLabel={false} className="shrink-0" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       )}
     </section>

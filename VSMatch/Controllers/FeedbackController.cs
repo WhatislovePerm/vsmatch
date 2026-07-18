@@ -90,17 +90,23 @@ public class FeedbackController : ControllerBase
 
         var activeStatuses = new[] { MatchStatus.Scheduled, MatchStatus.Ready, MatchStatus.InProgress };
 
-        var topPlayers = await _db.UserRatings
-            .AsNoTracking()
-            .Include(r => r.User)
-            .OrderByDescending(r => r.Rating)
-            .Take(5)
-            .Select(r => new AdminTopPlayerDto(
-                r.UserId,
-                r.User != null ? r.User.DisplayName : r.UserId.ToString(),
-                r.Sport,
-                r.Rating))
-            .ToListAsync(ct);
+        // Топ-5 по каждому спорту — фронт раскладывает по табам.
+        var topPlayers = new List<AdminTopPlayerDto>();
+        foreach (var sport in Domain.Sports.SportCatalog.All.Keys)
+        {
+            topPlayers.AddRange(await _db.UserRatings
+                .AsNoTracking()
+                .Include(r => r.User)
+                .Where(r => r.Sport == sport)
+                .OrderByDescending(r => r.Rating)
+                .Take(5)
+                .Select(r => new AdminTopPlayerDto(
+                    r.UserId,
+                    r.User != null ? r.User.DisplayName : r.UserId.ToString(),
+                    r.Sport,
+                    r.Rating))
+                .ToListAsync(ct));
+        }
 
         return Ok(new AdminStatsDto(
             Users: await _db.Users.CountAsync(ct),
