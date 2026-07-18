@@ -173,6 +173,9 @@ button {
 .cluster-marker--md { min-width: 40px; height: 40px; font-size: 14px; }
 .cluster-marker--lg { min-width: 48px; height: 48px; font-size: 15px; }
 
+/* Внутри кластера есть занятая площадка (идёт/собирается матч) */
+.cluster-marker--busy { background: #b91c1c; }
+
 .court-marker-wrapper:hover .cluster-marker {
   transform: scale(1.1);
 }

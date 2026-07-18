@@ -31,8 +31,8 @@ const MAP_STYLE: StyleSpecification = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
 
-type ClusterProps = { cluster: true; cluster_id: number; point_count: number };
-type PointProps = { courtId: string };
+type ClusterProps = { cluster: true; cluster_id: number; point_count: number; busy: number };
+type PointProps = { courtId: string; busy: number };
 
 export function CourtMap({ courts, selectedId, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,10 +74,15 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
       wrapper.className = 'court-marker-wrapper';
 
       if ('cluster' in props && props.cluster) {
-        // ── Кластер: кружок с числом, клик = приближение ──
+        // ── Кластер: кружок с числом, клик = приближение.
+        //    Красный, если внутри есть занятая площадка (например, твой активный матч). ──
         const el = document.createElement('div');
         const n = props.point_count;
-        el.className = `cluster-marker ${n >= 50 ? 'cluster-marker--lg' : n >= 10 ? 'cluster-marker--md' : ''}`;
+        el.className = [
+          'cluster-marker',
+          n >= 50 ? 'cluster-marker--lg' : n >= 10 ? 'cluster-marker--md' : '',
+          props.busy > 0 ? 'cluster-marker--busy' : '',
+        ].filter(Boolean).join(' ');
         el.textContent = n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n);
         wrapper.appendChild(el);
         wrapper.addEventListener('click', (e) => {
@@ -161,12 +166,18 @@ export function CourtMap({ courts, selectedId, onSelect }: Props) {
   useEffect(() => {
     courtsByIdRef.current = new Map(courts.map((c) => [c.id, c]));
 
-    const index = new Supercluster<PointProps>({ radius: 52, maxZoom: 15 });
+    // map/reduce агрегирует «занятость» наверх: кластер знает, сколько внутри занятых площадок.
+    const index = new Supercluster<PointProps, { busy: number }>({
+      radius: 52,
+      maxZoom: 15,
+      map: (props) => ({ busy: props.busy }),
+      reduce: (acc, props) => { acc.busy += props.busy; },
+    });
     index.load(
       courts.map((c) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [c.lon, c.lat] },
-        properties: { courtId: c.id },
+        properties: { courtId: c.id, busy: c.isFree ? 0 : 1 },
       })),
     );
     indexRef.current = index;
