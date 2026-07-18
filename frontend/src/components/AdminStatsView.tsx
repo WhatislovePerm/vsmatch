@@ -60,26 +60,25 @@ export function AdminStatsView() {
 
       {stats.topPlayers.length > 0 && (
         <div className="rounded-[18px] bg-subtle border border-line p-3">
-          <div className="flex items-center justify-between gap-2 mb-2.5">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-muted">
-              Топ рейтинга
-            </div>
-            <nav className="inline-flex items-center gap-0.5 p-0.5 rounded-[10px] bg-card border border-line">
-              {SPORTS.map((s) => (
-                <button
-                  key={s.kind}
-                  type="button"
-                  onClick={() => setTopSport(s.kind)}
-                  className={[
-                    'px-2.5 h-7 rounded-[8px] text-[11.5px] font-semibold transition-colors whitespace-nowrap',
-                    topSport === s.kind ? 'bg-ink-3 text-white' : 'text-muted hover:text-ink',
-                  ].join(' ')}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </nav>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">
+            Топ рейтинга
           </div>
+          {/* Табы на своей строке во всю ширину — не вылезают на узких экранах */}
+          <nav className="grid grid-cols-3 gap-0.5 p-0.5 rounded-[10px] bg-card border border-line mb-2.5">
+            {SPORTS.map((s) => (
+              <button
+                key={s.kind}
+                type="button"
+                onClick={() => setTopSport(s.kind)}
+                className={[
+                  'h-8 rounded-[8px] text-[12px] font-semibold transition-colors truncate px-1',
+                  topSport === s.kind ? 'bg-ink-3 text-white' : 'text-muted hover:text-ink',
+                ].join(' ')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </nav>
 
           {(() => {
             const players = stats.topPlayers.filter((p) => p.sport === topSport);

@@ -35,7 +35,9 @@ export function FeedbackModal({ onClose }: Props) {
   };
 
   return (
-    <div className="absolute inset-0 z-[1300] bg-ink/20 backdrop-blur-[2px] flex items-center justify-center p-4">
+    // items-start на мобиле: при открытой клавиатуре модалка остаётся видимой сверху,
+    // а не прячется за клавиатуру по центру экрана.
+    <div className="absolute inset-0 z-[1300] bg-ink/20 backdrop-blur-[2px] flex items-start sm:items-center justify-center p-4 pt-6 sm:pt-4 overflow-y-auto">
       <section className="w-full max-w-[460px] bg-card border border-line rounded-[28px] shadow-[0_24px_70px_-22px_rgba(31,44,65,0.32)] overflow-hidden">
         <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-line">
           <div className="flex items-start gap-3">
@@ -65,11 +67,10 @@ export function FeedbackModal({ onClose }: Props) {
         ) : (
           <form onSubmit={submit} className="p-6 flex flex-col gap-4">
             <textarea
-              autoFocus
               value={message}
               onChange={(e) => { setMessage(e.target.value); setError(null); }}
               placeholder="Опишите проблему или идею…"
-              rows={6}
+              rows={4}
               maxLength={2000}
               className="w-full px-4 py-3 bg-subtle border border-line rounded-[14px] text-[14px] text-ink placeholder:text-muted-2 transition-colors focus:outline-none focus:border-ink-3/40 focus:bg-card resize-none"
             />

@@ -83,7 +83,7 @@ export function RatingCelebration({ data, onClose }: Props) {
           <div className="mt-4">
             <div className="h-1.5 rounded-full bg-subtle-2 overflow-hidden">
               <div
-                className="h-full rounded-full bg-ink-3 transition-all duration-700"
+                className="h-full rounded-full bg-success transition-all duration-700"
                 style={{ width: `${Math.round(progress.progress * 100)}%` }}
               />
             </div>

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
-import { X } from 'lucide-react';
+import { Moon, Sun, X } from 'lucide-react';
+import { loadTheme, setTheme, type Theme } from '../theme';
 import type { Me } from '../api/auth';
 import type { Match } from '../types';
 import { Button, IconButton, Input } from './ui';
@@ -27,6 +28,12 @@ export function ProfilePanel({ me, history, onClose, onSave }: Props) {
   const rating = me.ratings?.[sport] ?? 500;
   const tierProgress = getTierProgress(rating);
   const sportLabel = SPORTS.find((s) => s.kind === sport)?.label ?? sport;
+  const [theme, setThemeState] = useState<Theme>(loadTheme);
+
+  const switchTheme = (t: Theme) => {
+    setTheme(t);
+    setThemeState(t);
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,9 +70,9 @@ export function ProfilePanel({ me, history, onClose, onSave }: Props) {
           </div>
           {tierProgress.next ? (
             <>
-              <div className="h-2 rounded-full bg-subtle-2 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-subtle-2 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-ink-3 transition-all duration-500"
+                  className="h-full rounded-full bg-success transition-all duration-500"
                   style={{ width: `${Math.round(tierProgress.progress * 100)}%` }}
                 />
               </div>
@@ -77,6 +84,33 @@ export function ProfilePanel({ me, history, onClose, onSave }: Props) {
           ) : (
             <div className="text-[12px] text-muted">Максимальный тир. Ты — Абсолют. 🔥</div>
           )}
+
+          {/* Тема оформления */}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Тема</div>
+            <nav className="inline-flex items-center gap-0.5 p-0.5 rounded-[12px] bg-subtle border border-line">
+              <button
+                type="button"
+                onClick={() => switchTheme('light')}
+                className={[
+                  'inline-flex items-center gap-1.5 px-3 h-8 rounded-[9px] text-[12.5px] font-semibold transition-colors',
+                  theme === 'light' ? 'bg-card shadow-sm text-ink' : 'text-muted hover:text-ink',
+                ].join(' ')}
+              >
+                <Sun size={14} /> Светлая
+              </button>
+              <button
+                type="button"
+                onClick={() => switchTheme('dark')}
+                className={[
+                  'inline-flex items-center gap-1.5 px-3 h-8 rounded-[9px] text-[12.5px] font-semibold transition-colors',
+                  theme === 'dark' ? 'bg-card shadow-sm text-ink' : 'text-muted hover:text-ink',
+                ].join(' ')}
+              >
+                <Moon size={14} /> Тёмная
+              </button>
+            </nav>
+          </div>
         </div>
 
         <form onSubmit={submit} className="p-6 flex flex-col gap-4 border-b border-line">

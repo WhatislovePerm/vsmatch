@@ -1,18 +1,8 @@
 @import "tailwindcss";
 
-/* ───────────── Фирменный шрифт Unifix SP ───────────── */
-@font-face {
-  font-family: "Unifix SP";
-  src: url("/fonts/UnifixSP.woff2") format("woff2"),
-       url("/fonts/UnifixSP.otf") format("opentype");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
 /* ───────────── Theme tokens (light, iOS-style, из SVG-референса) ───────────── */
 @theme {
-  --font-sans: "Unifix SP", "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", Roboto, sans-serif;
 
   /* Поверхности */
@@ -48,9 +38,8 @@
   --color-info-line: #cfd6e6;
 }
 
-/* ───────────── Тёмная тема (auto по системной настройке) ───────────── */
-@media (prefers-color-scheme: dark) {
-  :root {
+/* ───────────── Тёмная тема (ручной тумблер в профиле → класс .dark на <html>) ───────────── */
+:root.dark {
     --color-page: #0f1319;
     --color-page-2: #151a22;
     --color-card: #1a2029;
@@ -78,16 +67,15 @@
     --color-info: #93c5fd;
     --color-info-bg: #14202e;
     --color-info-line: #1e3a5f;
-  }
+}
 
-  /* Primary-кнопки и лого-плитки: на тёмном — светлая заливка с тёмным текстом */
-  .bg-ink-3 { color: #12161d !important; }
+/* Primary-кнопки и лого-плитки: на тёмном — светлая заливка с тёмным текстом */
+:root.dark .bg-ink-3 { color: #12161d !important; }
 
-  /* Тёмная карта из светлых OSM-тайлов: инверсия + возврат оттенков */
-  .court-map canvas {
-    filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.7);
-  }
-  /* Маркеры и контролы рендерятся поверх канваса — их фильтр не трогает */
+/* Тёмная карта из светлых OSM-тайлов: инверсия + возврат оттенков.
+   Маркеры и контролы рендерятся поверх канваса — их фильтр не трогает. */
+:root.dark .court-map canvas {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.7);
 }
 
 /* ───────────── Глобальный сброс / база ───────────── */
@@ -113,10 +101,7 @@ button {
   font-family: inherit;
 }
 
-/* Цифры и таблицы данных — Inter: декоративный Unifix утомляет в data-heavy местах.
-   Почти все числовые места уже размечены классом tabular-nums. */
 .tabular-nums {
-  font-family: "Inter Variable", -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -134,7 +119,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2.5px solid var(--color-card);
+  border: 2.5px solid #ffffff;
   box-shadow: 0 4px 12px rgba(31, 44, 65, 0.3);
   color: white;
   font-size: 14px;
@@ -173,12 +158,12 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-ink-3);
-  color: var(--color-card);
+  background: #1f7a3a;               /* в тон одиночных пинов площадок */
+  color: #ffffff;
   font-family: "Inter Variable", sans-serif;
   font-weight: 700;
   font-size: 13px;
-  border: 2.5px solid var(--color-card);
+  border: 2.5px solid #ffffff;
   box-shadow: 0 4px 14px rgba(31, 44, 65, 0.35);
   user-select: none;
   transition: transform 0.15s ease;
